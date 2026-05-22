@@ -1,295 +1,325 @@
-<script>
-// === CONFIG ===
-const PAGE_SIZE = 60;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>One Piece DEX</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
 
-// Image URL builders for each language. 
-// IMPORTANT: Verify the 'sc' URL pattern if your SC images are hosted elsewhere.
-const IMAGE_URLS = {
-  en: (cardId) => `https://en.onepiece-cardgame.com/images/cardlist/card/${cardId}.png?240831`,
-  jp: (cardId) => `https://www.onepiece-cardgame.com/images/cardlist/card/${cardId}.png?240831`,
-  sc: (cardId) => `https://asia-sc.onepiece-cardgame.com/images/cardlist/card/${cardId}.png?240831` // UPDATE THIS if needed
-};
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: radial-gradient(ellipse at top, #1a1f2e 0%, #0a0d14 50%, #050709 100%);
+  color: #FAF7F2;
+  min-height: 100vh;
+  position: relative;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.04em; }
+.editorial { font-family: 'Fraunces', serif; font-style: italic; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3142; border-radius: 3px; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input { font-family: inherit; }
 
-// === STATE ===
-let currentLang = localStorage.getItem('op_dex_lang') || 'en';
-let filteredCards = [];
-let visibleCount = 0;
-let activeFilters = { color: new Set(), type: new Set(), rarity: new Set() };
+header {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(10,13,20,0.85);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(245,158,11,0.15);
+}
+.header-inner { max-width: 1200px; margin: 0 auto; padding: 16px 16px 12px; }
+.brand-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand .anchor { width: 20px; height: 20px; color: #F59E0B; }
+.brand h1 { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 0.04em; line-height: 1; }
+.brand h1 .accent { color: #F59E0B; }
+.brand .subtitle { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #8B92A8; margin-top: 2px; }
+.data-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+  background: rgba(34,197,94,0.15); color: #4ADE80;
+  border: 1px solid rgba(34,197,94,0.3);
+}
+.data-badge .pulse {
+  width: 6px; height: 6px; border-radius: 50%; background: #4ADE80;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 50% { opacity: 0.4; } }
 
-// === DOM REFS ===
-const grid = document.getElementById('grid');
-const filterCount = document.getElementById('filter-count');
-const totalCount = document.getElementById('total-count');
-const searchInput = document.getElementById('search-input');
-const filterPanel = document.getElementById('filter-panel');
-const filterToggle = document.getElementById('filter-toggle');
-const clearBtn = document.getElementById('clear-btn');
-const loadMoreWrap = document.getElementById('load-more-wrap');
-const remainingEl = document.getElementById('remaining');
-const emptyEl = document.getElementById('empty');
-const modal = document.getElementById('modal');
-const modalId = document.getElementById('modal-id');
-const modalBody = document.getElementById('modal-body');
+.search-row { display: flex; gap: 8px; }
+.search-wrap { flex: 1; position: relative; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #8B92A8; pointer-events: none; }
+.search-input {
+  width: 100%; padding: 10px 12px 10px 36px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  color: #FAF7F2; font-size: 14px; outline: none;
+}
+.search-input:focus { border-color: rgba(245,158,11,0.4); }
+.filter-btn {
+  padding: 0 14px; border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #FAF7F2;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.filter-btn.active { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.4); color: #F59E0B; }
+.filter-btn svg { width: 18px; height: 18px; }
 
-// === LANGUAGE SWITCHER ===
-function setLang(lang) {
-  if (lang === currentLang) return;
-  currentLang = lang;
-  localStorage.setItem('op_dex_lang', lang);
-  
-  // Update pill UI
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.lang === lang);
-  });
-  
-  // Reset pagination and re-render with new language images
-  visibleCount = 0;
-  renderPage();
+.filter-panel {
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: none;
+  animation: fadeIn 0.3s ease-out;
+}
+.filter-panel.open { display: block; }
+.filter-group { margin-bottom: 12px; }
+.filter-group:last-child { margin-bottom: 0; }
+.filter-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #8B92A8; margin-bottom: 6px; }
+.pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill {
+  padding: 4px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 500;
+  background: rgba(255,255,255,0.04); color: #FAF7F2;
+  border: 1px solid rgba(255,255,255,0.08);
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: all 0.2s;
+}
+.pill .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.2); }
+.pill.active { background: rgba(245,158,11,0.2); color: #F59E0B; border-color: rgba(245,158,11,0.5); }
+.pill.color-active { color: #fff; }
+.clear-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: #F59E0B; font-size: 12px; margin-top: 4px;
 }
 
-function initLangSwitcher() {
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.lang === currentLang);
-  });
-}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-// === IMAGE HELPERS ===
-function getImageUrl(card) {
-  // If your data ever has explicit per-language overrides, use them
-  if (card.images && card.images[currentLang]) {
-    return card.images[currentLang];
-  }
-  const builder = IMAGE_URLS[currentLang];
-  return builder ? builder(card.id) : '';
+.stats {
+  max-width: 1200px; margin: 0 auto; padding: 16px 16px 8px;
+  display: flex; align-items: baseline; justify-content: space-between;
 }
+.stats .count { font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #8B92A8; }
+.stats .count .big { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: #F59E0B; margin-right: 6px; }
+.stats .note { font-family: 'Fraunces', serif; font-style: italic; font-size: 11px; color: #8B92A8; }
 
-function getSetColor(setNameOrCode) {
-  const text = setNameOrCode || '';
-  const match = text.match(/^(OP\d+|EB\d+|ST\d+|P)/i);
-  const code = match ? match[1].toUpperCase() : 'OP';
-  const colors = {
-    'OP01':'#e94560','OP02':'#0f3460','OP03':'#533483','OP04':'#f39422',
-    'OP05':'#16c79a','OP06':'#ef476f','OP07':'#118ab2','OP08':'#073b4c',
-    'OP09':'#ffd166','OP10':'#06d6a0','OP11':'#fb8500','OP12':'#8338ec',
-    'OP13':'#ff006e','OP14':'#3a86ff','OP15':'#06ffa5','EB01':'#ffbe0b',
-    'EB02':'#ff006e','ST':'#8ac926','P':'#c77dff'
-  };
-  return colors[code] || '#555';
+main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relative; z-index: 2; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
+@media (min-width: 540px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
+@media (min-width: 768px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 1024px) { .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.card { min-width: 0; } /* allow the grid item to shrink below content size */
 
-function getColorDot(color) {
-  if (!color) return '#666';
-  const c = color.toLowerCase();
-  if (c.includes('red')) return '#ef4444';
-  if (c.includes('green')) return '#22c55e';
-  if (c.includes('blue')) return '#3b82f6';
-  if (c.includes('purple')) return '#a855f7';
-  if (c.includes('black')) return '#1f2937';
-  if (c.includes('yellow')) return '#eab308';
-  return '#666';
+.card {
+  text-align: left; animation: fadeIn 0.4s ease-out;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  width: 100%;
 }
+.card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -10px rgba(245,158,11,0.25); }
+.card-img-wrap {
+  position: relative;
+  width: 100%;
+  padding-bottom: 139.86%; /* 1/0.715 — locks aspect ratio even if image fails */
+  border-radius: 8px; overflow: hidden;
+  background: #141A29;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.card-img-wrap > * { position: absolute; inset: 0; }
+.card-img-wrap img {
+  width: 100%; height: 100%; object-fit: cover;
+  display: block;
+  background: #141A29;
+}
+.fallback {
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 8px; text-align: center;
+}
+.fallback.show { display: flex; }
+.fallback .set-code { font-family: 'Bebas Neue', sans-serif; font-size: 32px; }
+.fallback .card-code { font-size: 10px; color: #8B92A8; margin-top: 4px; }
+.rarity-badge {
+  position: absolute !important; inset: auto !important;
+  top: 6px; right: 6px;
+  padding: 2px 6px; border-radius: 4px;
+  font-size: 9px; font-weight: 700;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  width: auto; height: auto;
+}
+.card-meta { padding: 6px 2px 0; }
+.card-meta .id { font-family: monospace; font-size: 10px; color: #8B92A8; }
+.card-meta .name { font-size: 12px; font-weight: 600; color: #FAF7F2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-// === RENDERING ===
-function createCardHTML(card) {
-  const imgUrl = getImageUrl(card);
-  const setColor = getSetColor(card.set?.name || card.code);
-  
-  return `
-    <div class="card" onclick="openModal('${card.id}')">
-      <div class="card-img-wrap">
-        <img src="${imgUrl}" alt="${escapeHtml(card.name)}" loading="lazy" 
-          onerror="this.style.display='none'; this.parentElement.querySelector('.fallback').classList.add('show');">
-        <div class="fallback" style="background:${setColor}">
-          <div class="set-code">${escapeHtml(card.code)}</div>
-          <div class="card-code">${escapeHtml(card.id)}</div>
+.empty { text-align: center; padding: 80px 16px; }
+.empty .sparkle { width: 32px; height: 32px; color: #8B92A8; margin: 0 auto 12px; }
+.empty .title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; }
+.empty .sub { font-size: 14px; color: #8B92A8; margin-top: 4px; }
+
+.load-more-wrap {
+  text-align: center; padding: 24px 0;
+}
+.load-more-btn {
+  padding: 10px 24px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: rgba(245,158,11,0.12); color: #F59E0B;
+  border: 1px solid rgba(245,158,11,0.3);
+  text-transform: uppercase; letter-spacing: 0.15em;
+  transition: all 0.2s;
+}
+.load-more-btn:hover { background: rgba(245,158,11,0.2); }
+
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: flex-end; justify-content: center;
+  padding: 0;
+}
+@media (min-width: 640px) { .modal-overlay { align-items: center; padding: 24px; } }
+.modal-overlay.open { display: flex; }
+.modal {
+  width: 100%; max-width: 480px; max-height: 92vh;
+  overflow-y: auto; border-radius: 24px 24px 0 0;
+  background: linear-gradient(180deg, #141A29 0%, #0a0d14 100%);
+  animation: fadeIn 0.3s ease-out;
+}
+@media (min-width: 640px) { .modal { border-radius: 24px; } }
+.modal-header {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(20,26,41,0.85);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.back-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
+.back-btn svg { width: 16px; height: 16px; }
+.modal-id { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #8B92A8; }
+.modal-body { padding: 20px; }
+.modal-img {
+  border-radius: 12px; overflow: hidden;
+  margin-bottom: 16px;
+  position: relative;
+  padding-bottom: 139.86%;
+}
+.modal-img img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+.modal-name { font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1; }
+.modal-family { font-size: 12px; color: #8B92A8; margin-top: 4px; margin-bottom: 16px; }
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.stat-cell {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px; padding: 10px; text-align: center;
+}
+.stat-cell .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em; color: #8B92A8; margin-bottom: 2px; }
+.stat-cell .val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; }
+.info-row {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.info-row .info-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #8B92A8; flex-shrink: 0; }
+.info-row .info-val { font-size: 12px; color: #FAF7F2; text-align: right; }
+.color-tag { display: inline-flex; align-items: center; gap: 4px; }
+.color-tag .dot { width: 10px; height: 10px; border-radius: 50%; }
+.ability-box {
+  margin-top: 16px; padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+}
+.ability-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #F59E0B; margin-bottom: 6px; }
+.ability-text { font-size: 13px; line-height: 1.5; color: #E5E0D8; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand-row">
+      <div class="brand">
+        <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
+        <div>
+          <h1>ONE PIECE <span class="accent">DEX</span></h1>
+          <div class="subtitle">Card Database · v2</div>
         </div>
-        ${card.rarity ? `<div class="rarity-badge">${escapeHtml(card.rarity)}</div>` : ''}
       </div>
-      <div class="card-meta">
-        <div class="id">${escapeHtml(card.code)}</div>
-        <div class="name">${escapeHtml(card.name)}</div>
+      <div class="data-badge"><span class="pulse"></span><span id="card-count-badge">3188 cards loaded</span></div>
+    </div>
+
+    <div class="search-row">
+      <div class="search-wrap">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="search-input" class="search-input" type="text" placeholder="Search by name or card ID (e.g. OP01-001)" autocomplete="off" />
       </div>
+      <button class="filter-btn" id="filter-toggle" onclick="toggleFilters()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      </button>
     </div>
-  `;
-}
 
-function renderPage() {
-  const toShow = filteredCards.slice(0, visibleCount + PAGE_SIZE);
-  visibleCount = toShow.length;
-  
-  if (toShow.length === 0) {
-    grid.innerHTML = '';
-    emptyEl.style.display = '';
-    loadMoreWrap.style.display = 'none';
-  } else {
-    grid.innerHTML = toShow.map(createCardHTML).join('');
-    emptyEl.style.display = 'none';
-  }
-  
-  filterCount.textContent = filteredCards.length;
-  totalCount.textContent = ALL_CARDS.length;
-  
-  const remaining = filteredCards.length - visibleCount;
-  if (remaining > 0) {
-    loadMoreWrap.style.display = '';
-    remainingEl.textContent = remaining;
-  } else {
-    loadMoreWrap.style.display = 'none';
-  }
-}
-
-function loadMore() {
-  visibleCount += PAGE_SIZE;
-  renderPage();
-}
-
-// === FILTERS ===
-function toggleFilters() {
-  filterPanel.classList.toggle('open');
-  filterToggle.classList.toggle('active');
-}
-
-function clearFilters() {
-  activeFilters = { color: new Set(), type: new Set(), rarity: new Set() };
-  searchInput.value = '';
-  document.querySelectorAll('.pill').forEach(p => {
-    p.classList.remove('active', 'color-active');
-  });
-  clearBtn.style.display = 'none';
-  applyFilters();
-}
-
-function applyFilters() {
-  const query = searchInput.value.toLowerCase().trim();
-  
-  filteredCards = ALL_CARDS.filter(card => {
-    if (query) {
-      const haystack = `${card.name} ${card.code} ${card.id} ${card.type} ${card.rarity} ${card.color}`.toLowerCase();
-      if (!haystack.includes(query)) return false;
-    }
-    
-    if (activeFilters.color.size > 0) {
-      const cardColor = (card.color || '').toLowerCase();
-      const has = Array.from(activeFilters.color).some(c => cardColor.includes(c.toLowerCase()));
-      if (!has) return false;
-    }
-    
-    if (activeFilters.type.size > 0) {
-      if (!activeFilters.type.has(card.type)) return false;
-    }
-    
-    if (activeFilters.rarity.size > 0) {
-      if (!activeFilters.rarity.has(card.rarity)) return false;
-    }
-    
-    return true;
-  });
-  
-  visibleCount = 0;
-  renderPage();
-  
-  const hasActive = activeFilters.color.size + activeFilters.type.size + activeFilters.rarity.size > 0 || query;
-  clearBtn.style.display = hasActive ? '' : 'none';
-}
-
-function makePill(text, group, containerId) {
-  const pill = document.createElement('button');
-  pill.className = 'pill';
-  pill.textContent = text;
-  
-  if (group === 'color') {
-    const dot = document.createElement('span');
-    dot.className = 'dot';
-    const map = {
-      'red':'#ef4444','green':'#22c55e','blue':'#3b82f6',
-      'purple':'#a855f7','black':'#1f2937','yellow':'#eab308',
-      'red/green':'linear-gradient(135deg,#ef4444 50%,#22c55e 50%)'
-    };
-    dot.style.background = map[text.toLowerCase()] || '#666';
-    pill.prepend(dot);
-  }
-  
-  pill.onclick = () => {
-    const set = activeFilters[group];
-    if (set.has(text)) {
-      set.delete(text);
-      pill.classList.remove('active');
-      if (group === 'color') pill.classList.remove('color-active');
-    } else {
-      set.add(text);
-      pill.classList.add('.add('active');
-      if (group === 'color') pill.classList.add('color-active');
-    }
-    applyFilters();
-  };
-  
-  document.getElementById(containerId).appendChild(pill);
-}
-
-function initFilters() {
-  const colors = new Set(), types = new Set(), rarities = new Set();
-  
-  ALL_CARDS.forEach(c => {
-    if (c.color) c.color.split('/').forEach(x => colors.add(x.trim()));
-    if (c.type) types.add(c.type);
-    if (c.rarity) rarities.add(c.rarity);
-  });
-  
-  Array.from(colors).sort().forEach(c => makePill(c, 'color', 'color-pills'));
-  Array.from(types).sort().forEach(t => makePill(t, 'type', 'type-pills'));
-  Array.from(rarities).sort().forEach(r => makePill(r, 'rarity', 'rarity-pills'));
-}
-
-// === MODAL ===
-function openModal(cardId) {
-  const card = ALL_CARDS.find(c => c.id === cardId);
-  if (!card) return;
-  
-  modalId.textContent = `${card.code} · ${card.rarity || '-'} · ${card.type || '-'}`;
-  
-  const imgUrl = getImageUrl(card);
-  const setColor = getSetColor(card.set?.name || card.code);
-  
-  modalBody.innerHTML = `
-    <div class="modal-img">
-      <img src="${imgUrl}" alt="${escapeHtml(card.name)}" 
-        onerror="this.style.display='none'; this.parentElement.style.background='${setColor}'; this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;\\'><div style=\\'font-family:Bebas Neue,sans-serif;font-size:40px;\\'>${card.code}</div><div style=\\'font-size:14px;margin-top:8px;\\'>${card.id}</div></div>';">
+    <div class="filter-panel" id="filter-panel">
+      <div class="filter-group">
+        <div class="filter-label">Color</div>
+        <div class="pill-row" id="color-pills"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Type</div>
+        <div class="pill-row" id="type-pills"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-label">Rarity</div>
+        <div class="pill-row" id="rarity-pills"></div>
+      </div>
+      <button class="clear-btn" onclick="clearFilters()" id="clear-btn" style="display:none">
+        ✕ Clear all filters
+      </button>
     </div>
-    <div class="modal-name">${escapeHtml(card.name)}</div>
-    <div class="modal-family">${escapeHtml(card.family || '')}</div>
-    <div class="stat-row">
-      <div class="stat-cell"><div class="lbl">Cost</div><div class="val">${card.cost ?? '-'}</div></div>
-      <div class="stat-cell"><div class="lbl">Power</div><div class="val">${card.power ?? '-'}</div></div>
-      <div class="stat-cell"><div class="lbl">Counter</div><div class="val">${card.counter ?? '-'}</div></div>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="count"><span class="big" id="filter-count">0</span>/ <span id="total-count">0</span> cards</div>
+  <div class="note" id="data-note">tap a card for full detail</div>
+</div>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="load-more-wrap" id="load-more-wrap" style="display:none">
+    <button class="load-more-btn" onclick="loadMore()">Load more (<span id="remaining">0</span> remaining)</button>
+  </div>
+  <div class="empty" id="empty" style="display:none">
+    <svg class="sparkle" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"/></svg>
+    <div class="title">NO CARDS FOUND</div>
+    <div class="sub">Try adjusting your filters.</div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <button class="back-btn" onclick="closeModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
+      </button>
+      <div class="modal-id" id="modal-id"></div>
     </div>
-    <div class="info-row"><div class="info-lbl">Color</div><div class="info-val"><span class="color-tag"><span class="dot" style="background:${getColorDot(card.color)}"></span>${escapeHtml(card.color || '-')}</span></div></div>
-    <div class="info-row"><div class="info-lbl">Set</div><div class="info-val">${escapeHtml(card.set?.name || '-')}</div></div>
-    ${card.ability ? `<div class="ability-box"><div class="ability-lbl">Ability</div><div class="ability-text">${card.ability}</div></div>` : ''}
-  `;
-  
-  modal.classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
 
-function closeModal(e) {
-  if (e && e.target !== modal && !e.target.closest('.modal-backdrop-area')) return; // allow clicking overlay only
-  modal.classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-// === UTILS ===
-function escapeHtml(text) {
-  if (text == null) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-// === INIT ===
-searchInput.addEventListener('input', applyFilters);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-initLangSwitcher();
-initFilters();
-applyFilters();
-</script>
+<script>
+// === DATA INJECTED BELOW ===
+const ALL_CARDS = [{"id":"EB01-001","code":"EB01-001","rarity":"L","type":"LEADER","name":"Kouzuki Oden","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Red/Green","family":"Land of Wano/Kouzuki Clan","ability":"All of your {Land of Wano} type Character cards without aCounter have a +1000 Counter, according to the rules.<br>[DON!!x1] [When Attacking] If you have a {Land of Wano} typeCharacter with a cost of 5 or more, this Leader gains +1000power until the start of your next turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-001_p1","code":"EB01-001","rarity":"L","type":"LEADER","name":"Kouzuki Oden","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001_p1.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Red/Green","family":"Land of Wano/Kouzuki Clan","ability":"All of your {Land of Wano} type Character cards without aCounter have a +1000 Counter, according to the rules.<br>[DON!!x1] [When Attacking] If you have a {Land of Wano} typeCharacter with a cost of 5 or more, this Leader gains +1000power until the start of your next turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-002","code":"EB01-002","rarity":"R","type":"CHARACTER","name":"Izo","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-002.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-002.png?240831"},"cost":5,"power":7000,"counter":"-","color":"Red","family":"Land of Wano/Whitebeard Pirates","ability":"[On Play] Give up to 1 rested DON!! card to your Leader or 1of your Characters.[On Your Opponent's Attack] [Once PerTurn] You may trash 1 card from your hand: If your Leaderhas the {Land of Wano} or {Whitebeard Pirates} type, give upto 1 of your opponent's Leader or Character cards −2000power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-003","code":"EB01-003","rarity":"R","type":"CHARACTER","name":"Kid & Killer","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-003.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-003.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Red","family":"Supernovas/Kid Pirates","ability":"[Rush] (This card can attack on the turn in which it isplayed.)[When Attacking] If your opponent has 2 or less Lifecards, this Character gains +2000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-003_p1","code":"EB01-003","rarity":"R","type":"CHARACTER","name":"Kid & Killer","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-003_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-003_p1.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Red","family":"Supernovas/Kid Pirates","ability":"[Rush] (This card can attack on the turn in which it isplayed.)[When Attacking] If your opponent has 2 or less Lifecards, this Character gains +2000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-004","code":"EB01-004","rarity":"C","type":"CHARACTER","name":"Koza","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-004.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-004.png?240831"},"cost":2,"power":3000,"counter":"1000","color":"Red","family":"Alabasta","ability":"[When Attacking] You may give your 1 active Leader −5000power during this turn: Give up to 1 of your opponent'sCharacters −3000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-005","code":"EB01-005","rarity":"C","type":"CHARACTER","name":"Doma","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-005.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-005.png?240831"},"cost":1,"power":3000,"counter":"1000","color":"Red","family":"Whitebeard Pirates Allies","ability":"-","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-006","code":"EB01-006","rarity":"SR","type":"CHARACTER","name":"Tony Tony.Chopper","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Red","family":"Animal/Straw Hat Crew","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of theattack.)[DON!! x2] [When Attacking] Give up to 1 of youropponent's Characters −3000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-006_p1","code":"EB01-006","rarity":"SR","type":"CHARACTER","name":"Tony Tony.Chopper","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006_p1.png?240831","large":"https://e
