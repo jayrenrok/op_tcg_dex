@@ -1,348 +1,295 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>One Piece DEX</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
-
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body { height: 100%; }
-body {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  background: radial-gradient(ellipse at top, #1a1f2e 0%, #0a0d14 50%, #050709 100%);
-  color: #FAF7F2;
-  min-height: 100vh;
-  position: relative;
-}
-body::before {
-  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: 0.04;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-.display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.04em; }
-.editorial { font-family: 'Fraunces', serif; font-style: italic; }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a3142; border-radius: 3px; }
-button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
-input { font-family: inherit; }
-
-header {
-  position: sticky; top: 0; z-index: 20;
-  background: rgba(10,13,20,0.85);
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(245,158,11,0.15);
-}
-.header-inner { max-width: 1200px; margin: 0 auto; padding: 16px 16px 12px; }
-.brand-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
-.brand { display: flex; align-items: center; gap: 8px; }
-.brand .anchor { width: 20px; height: 20px; color: #F59E0B; }
-.brand h1 { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 0.04em; line-height: 1; }
-.brand h1 .accent { color: #F59E0B; }
-.brand .subtitle { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #8B92A8; margin-top: 2px; }
-.data-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: 999px;
-  font-size: 11px; font-weight: 600;
-  background: rgba(34,197,94,0.15); color: #4ADE80;
-  border: 1px solid rgba(34,197,94,0.3);
-}
-.lang-switcher {
-  display: inline-flex; gap: 2px; padding: 3px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 999px;
-}
-.lang-btn {
-  padding: 5px 12px; border-radius: 999px;
-  font-size: 11px; font-weight: 600;
-  color: #8B92A8;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.lang-btn.active {
-  background: rgba(245,158,11,0.18);
-  color: #F59E0B;
-  box-shadow: 0 0 0 1px rgba(245,158,11,0.3);
-}
-.lang-btn:not(.active):hover { color: #FAF7F2; }
-.data-badge .pulse {
-  width: 6px; height: 6px; border-radius: 50%; background: #4ADE80;
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse { 50% { opacity: 0.4; } }
-
-.search-row { display: flex; gap: 8px; }
-.search-wrap { flex: 1; position: relative; }
-.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #8B92A8; pointer-events: none; }
-.search-input {
-  width: 100%; padding: 10px 12px 10px 36px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  color: #FAF7F2; font-size: 14px; outline: none;
-}
-.search-input:focus { border-color: rgba(245,158,11,0.4); }
-.filter-btn {
-  padding: 0 14px; border-radius: 12px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: #FAF7F2;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-}
-.filter-btn.active { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.4); color: #F59E0B; }
-.filter-btn svg { width: 18px; height: 18px; }
-
-.filter-panel {
-  margin-top: 12px; padding-top: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  display: none;
-  animation: fadeIn 0.3s ease-out;
-}
-.filter-panel.open { display: block; }
-.filter-group { margin-bottom: 12px; }
-.filter-group:last-child { margin-bottom: 0; }
-.filter-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #8B92A8; margin-bottom: 6px; }
-.pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill {
-  padding: 4px 12px; border-radius: 999px;
-  font-size: 12px; font-weight: 500;
-  background: rgba(255,255,255,0.04); color: #FAF7F2;
-  border: 1px solid rgba(255,255,255,0.08);
-  display: inline-flex; align-items: center; gap: 6px;
-  transition: all 0.2s;
-}
-.pill .dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,0.2); }
-.pill.active { background: rgba(245,158,11,0.2); color: #F59E0B; border-color: rgba(245,158,11,0.5); }
-.pill.color-active { color: #fff; }
-.clear-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  color: #F59E0B; font-size: 12px; margin-top: 4px;
-}
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-.stats {
-  max-width: 1200px; margin: 0 auto; padding: 16px 16px 8px;
-  display: flex; align-items: baseline; justify-content: space-between;
-}
-.stats .count { font-size: 11px; text-transform: uppercase; letter-spacing: 0.2em; color: #8B92A8; }
-.stats .count .big { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: #F59E0B; margin-right: 6px; }
-.stats .note { font-family: 'Fraunces', serif; font-style: italic; font-size: 11px; color: #8B92A8; }
-
-main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relative; z-index: 2; }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-@media (min-width: 540px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; } }
-@media (min-width: 768px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (min-width: 1024px) { .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
-.card { min-width: 0; } /* allow the grid item to shrink below content size */
-
-.card {
-  text-align: left; animation: fadeIn 0.4s ease-out;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  width: 100%;
-}
-.card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -10px rgba(245,158,11,0.25); }
-.card-img-wrap {
-  position: relative;
-  width: 100%;
-  padding-bottom: 139.86%; /* 1/0.715 — locks aspect ratio even if image fails */
-  border-radius: 8px; overflow: hidden;
-  background: #141A29;
-  border: 1px solid rgba(255,255,255,0.06);
-}
-.card-img-wrap > * { position: absolute; inset: 0; }
-.card-img-wrap img {
-  width: 100%; height: 100%; object-fit: cover;
-  display: block;
-  background: #141A29;
-}
-.fallback {
-  display: none;
-  flex-direction: column; align-items: center; justify-content: center;
-  padding: 8px; text-align: center;
-}
-.fallback.show { display: flex; }
-.fallback .set-code { font-family: 'Bebas Neue', sans-serif; font-size: 32px; }
-.fallback .card-code { font-size: 10px; color: #8B92A8; margin-top: 4px; }
-.rarity-badge {
-  position: absolute !important; inset: auto !important;
-  top: 6px; right: 6px;
-  padding: 2px 6px; border-radius: 4px;
-  font-size: 9px; font-weight: 700;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-  width: auto; height: auto;
-}
-.card-meta { padding: 6px 2px 0; }
-.card-meta .id { font-family: monospace; font-size: 10px; color: #8B92A8; }
-.card-meta .name { font-size: 12px; font-weight: 600; color: #FAF7F2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.empty { text-align: center; padding: 80px 16px; }
-.empty .sparkle { width: 32px; height: 32px; color: #8B92A8; margin: 0 auto 12px; }
-.empty .title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; }
-.empty .sub { font-size: 14px; color: #8B92A8; margin-top: 4px; }
-
-.load-more-wrap {
-  text-align: center; padding: 24px 0;
-}
-.load-more-btn {
-  padding: 10px 24px; border-radius: 999px;
-  font-size: 12px; font-weight: 600;
-  background: rgba(245,158,11,0.12); color: #F59E0B;
-  border: 1px solid rgba(245,158,11,0.3);
-  text-transform: uppercase; letter-spacing: 0.15em;
-  transition: all 0.2s;
-}
-.load-more-btn:hover { background: rgba(245,158,11,0.2); }
-
-.modal-overlay {
-  position: fixed; inset: 0; z-index: 50;
-  background: rgba(0,0,0,0.85);
-  display: none;
-  align-items: flex-end; justify-content: center;
-  padding: 0;
-}
-@media (min-width: 640px) { .modal-overlay { align-items: center; padding: 24px; } }
-.modal-overlay.open { display: flex; }
-.modal {
-  width: 100%; max-width: 480px; max-height: 92vh;
-  overflow-y: auto; border-radius: 24px 24px 0 0;
-  background: linear-gradient(180deg, #141A29 0%, #0a0d14 100%);
-  animation: fadeIn 0.3s ease-out;
-}
-@media (min-width: 640px) { .modal { border-radius: 24px; } }
-.modal-header {
-  position: sticky; top: 0; z-index: 10;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px;
-  background: rgba(20,26,41,0.85);
-  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-}
-.back-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; }
-.back-btn svg { width: 16px; height: 16px; }
-.modal-id { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #8B92A8; }
-.modal-body { padding: 20px; }
-.modal-img {
-  border-radius: 12px; overflow: hidden;
-  margin-bottom: 16px;
-  position: relative;
-  padding-bottom: 139.86%;
-}
-.modal-img img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
-.modal-name { font-family: 'Bebas Neue', sans-serif; font-size: 30px; line-height: 1; }
-.modal-family { font-size: 12px; color: #8B92A8; margin-top: 4px; margin-bottom: 16px; }
-.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-.stat-cell {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 8px; padding: 10px; text-align: center;
-}
-.stat-cell .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 0.2em; color: #8B92A8; margin-bottom: 2px; }
-.stat-cell .val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; }
-.info-row {
-  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-.info-row .info-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.15em; color: #8B92A8; flex-shrink: 0; }
-.info-row .info-val { font-size: 12px; color: #FAF7F2; text-align: right; }
-.color-tag { display: inline-flex; align-items: center; gap: 4px; }
-.color-tag .dot { width: 10px; height: 10px; border-radius: 50%; }
-.ability-box {
-  margin-top: 16px; padding: 12px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-}
-.ability-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em; color: #F59E0B; margin-bottom: 6px; }
-.ability-text { font-size: 13px; line-height: 1.5; color: #E5E0D8; }
-</style>
-</head>
-<body>
-
-<header>
-  <div class="header-inner">
-    <div class="brand-row">
-      <div class="brand">
-        <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
-        <div>
-          <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v2</div>
-        </div>
-      </div>
-      <div class="lang-switcher" id="lang-switcher">
-        <button class="lang-btn active" data-lang="en" onclick="setLang('en')">EN</button>
-        <button class="lang-btn" data-lang="jp" onclick="setLang('jp')">日本語</button>
-        <button class="lang-btn" data-lang="sc" onclick="setLang('sc')">简中</button>
-      </div>
-    </div>
-
-    <div class="search-row">
-      <div class="search-wrap">
-        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="search-input" class="search-input" type="text" placeholder="Search by name or card ID (e.g. OP01-001)" autocomplete="off" />
-      </div>
-      <button class="filter-btn" id="filter-toggle" onclick="toggleFilters()">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-      </button>
-    </div>
-
-    <div class="filter-panel" id="filter-panel">
-      <div class="filter-group">
-        <div class="filter-label">Color</div>
-        <div class="pill-row" id="color-pills"></div>
-      </div>
-      <div class="filter-group">
-        <div class="filter-label">Type</div>
-        <div class="pill-row" id="type-pills"></div>
-      </div>
-      <div class="filter-group">
-        <div class="filter-label">Rarity</div>
-        <div class="pill-row" id="rarity-pills"></div>
-      </div>
-      <button class="clear-btn" onclick="clearFilters()" id="clear-btn" style="display:none">
-        ✕ Clear all filters
-      </button>
-    </div>
-  </div>
-</header>
-
-<div class="stats">
-  <div class="count"><span class="big" id="filter-count">0</span>/ <span id="total-count">0</span> cards</div>
-  <div class="note" id="data-note">tap a card for full detail</div>
-</div>
-
-<main>
-  <div class="grid" id="grid"></div>
-  <div class="load-more-wrap" id="load-more-wrap" style="display:none">
-    <button class="load-more-btn" onclick="loadMore()">Load more (<span id="remaining">0</span> remaining)</button>
-  </div>
-  <div class="empty" id="empty" style="display:none">
-    <svg class="sparkle" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"/></svg>
-    <div class="title">NO CARDS FOUND</div>
-    <div class="sub">Try adjusting your filters.</div>
-  </div>
-</main>
-
-<div class="modal-overlay" id="modal" onclick="closeModal(event)">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <button class="back-btn" onclick="closeModal()">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Back
-      </button>
-      <div class="modal-id" id="modal-id"></div>
-    </div>
-    <div class="modal-body" id="modal-body"></div>
-  </div>
-</div>
-
 <script>
-// === DATA INJECTED BELOW ===
-const ALL_CARDS = [{"id":"EB01-001","code":"EB01-001","rarity":"L","type":"LEADER","name":"Kouzuki Oden","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Red/Green","family":"Land of Wano/Kouzuki Clan","ability":"All of your {Land of Wano} type Character cards without aCounter have a +1000 Counter, according to the rules.<br>[DON!!x1] [When Attacking] If you have a {Land of Wano} typeCharacter with a cost of 5 or more, this Leader gains +1000power until the start of your next turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-001_p1","code":"EB01-001","rarity":"L","type":"LEADER","name":"Kouzuki Oden","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001_p1.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Red/Green","family":"Land of Wano/Kouzuki Clan","ability":"All of your {Land of Wano} type Character cards without aCounter have a +1000 Counter, according to the rules.<br>[DON!!x1] [When Attacking] If you have a {Land of Wano} typeCharacter with a cost of 5 or more, this Leader gains +1000power until the start of your next turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-002","code":"EB01-002","rarity":"R","type":"CHARACTER","name":"Izo","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-002.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-002.png?240831"},"cost":5,"power":7000,"counter":"-","color":"Red","family":"Land of Wano/Whitebeard Pirates","ability":"[On Play] Give up to 1 rested DON!! card to your Leader or 1of your Characters.[On Your Opponent's Attack] [Once PerTurn] You may trash 1 card from your hand: If your Leaderhas the {Land of Wano} or {Whitebeard Pirates} type, give upto 1 of your opponent's Leader or Character cards −2000power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-003","code":"EB01-003","rarity":"R","type":"CHARACTER","name":"Kid & Killer","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-003.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-003.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Red","family":"Supernovas/Kid Pirates","ability":"[Rush] (This card can attack on the turn in which it isplayed.)[When Attacking] If your opponent has 2 or less Lifecards, this Character gains +2000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-003_p1","code":"EB01-003","rarity":"R","type":"CHARACTER","name":"Kid & Killer","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-003_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-003_p1.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Red","family":"Supernovas/Kid Pirates","ability":"[Rush] (This card can attack on the turn in which it isplayed.)[When Attacking] If your opponent has 2 or less Lifecards, this Character gains +2000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-004","code":"EB01-004","rarity":"C","type":"CHARACTER","name":"Koza","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-004.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-004.png?240831"},"cost":2,"power":3000,"counter":"1000","color":"Red","family":"Alabasta","ability":"[When Attacking] You may give your 1 active Leader −5000power during this turn: Give up to 1 of your opponent'sCharacters −3000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-005","code":"EB01-005","rarity":"C","type":"CHARACTER","name":"Doma","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-005.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-005.png?240831"},"cost":1,"power":3000,"counter":"1000","color":"Red","family":"Whitebeard Pirates Allies","ability":"-","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-006","code":"EB01-006","rarity":"SR","type":"CHARACTER","name":"Tony Tony.Chopper","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Red","family":"Animal/Straw Hat Crew","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of theattack.)[DON!! x2] [When Attacking] Give up to 1 of youropponent's Characters −3000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-006_p1","code":"EB01-006","rarity":"SR","type":"CHARACTER","name":"Tony Tony.Chopper","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006_p1.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Red","family":"Animal/Straw Hat Crew","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of theattack.)[DON!! x2] [When Attacking] Give up to 1 of youropponent's Characters −3000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-006_p2","code":"EB01-006","rarity":"SR","type":"CHARACTER","name":"Tony Tony.Chopper","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006_p2.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-006_p2.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Red","family":"Animal/Straw Hat Crew","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of theattack.)[DON!! x2] [When Attacking] Give up to 1 of youropponent's Characters −3000 power during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-007","code":"EB01-007","rarity":"C","type":"CHARACTER","name":"Yamato","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-007.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-007.png?240831"},"cost":5,"power":5000,"counter":"2000","color":"Red","family":"Land of Wano","ability":"[Activate: Main] [Once Per Turn] Give up to 1 rested DON!!card to your Leader or 1 of your Characters.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-008","code":"EB01-008","rarity":"R","type":"CHARACTER","name":"LittleOars Jr.","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-008.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-008.png?240831"},"cost":6,"power":7000,"counter":"1000","color":"Red","family":"Giant/Whitebeard Pirates Allies","ability":"[Once Per Turn] If this Character would be K.O.'d by aneffect, you may trash 1 Event or Stage card from your handinstead.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-009","code":"EB01-009","rarity":"C","type":"EVENT","name":"Just Shut Up and Come with Us!!!!","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-009.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-009.png?240831"},"cost":1,"power":null,"counter":"-","color":"Red","family":"Drum Kingdom/Straw Hat Crew","ability":"[Counter] Look at 5 cards from the top of your deck and playup to 1 {Animal} type Character card with a cost of 3 orless. Then, place the rest at the bottom of your deck in anyorder.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-010","code":"EB01-010","rarity":"R","type":"EVENT","name":"There's No Way You Could Defeat Me!!","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-010.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-010.png?240831"},"cost":3,"power":null,"counter":"-","color":"Red","family":"Water Seven/Straw Hat Crew","ability":"[Counter] K.O. up to 1 of your opponent's Characters with6000 base power or less.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-011","code":"EB01-011","rarity":"C","type":"STAGE","name":"Mini-Merry","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-011.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-011.png?240831"},"cost":1,"power":null,"counter":"-","color":"Red","family":"Straw Hat Crew","ability":"[Activate: Main] You may rest this card and place 1 of yourCharacters with 1000 base power at the bottom of your deck:Draw 1 card.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-012","code":"EB01-012","rarity":"SR","type":"CHARACTER","name":"Cavendish","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-012.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-012.png?240831"},"cost":5,"power":6000,"counter":"1000","color":"Green","family":"Supernovas/Beautiful Pirates","ability":"[On Play]/[When Attacking] If your Leader has the{Supernovas} type and you have no other [Cavendish]Characters, set up to 2 of your DON!! cards as active.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-012_p1","code":"EB01-012","rarity":"SR","type":"CHARACTER","name":"Cavendish","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-012_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-012_p1.png?240831"},"cost":5,"power":6000,"counter":"1000","color":"Green","family":"Supernovas/Beautiful Pirates","ability":"[On Play]/[When Attacking] If your Leader has the{Supernovas} type and you have no other [Cavendish]Characters, set up to 2 of your DON!! cards as active.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-013","code":"EB01-013","rarity":"R","type":"CHARACTER","name":"Kouzuki Hiyori","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-013.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-013.png?240831"},"cost":4,"power":null,"counter":"1000","color":"Green","family":"Land of Wano/Kouzuki Clan","ability":"[Activate: Main] You may trash this Character: Play up to 1{Land of Wano} type Character card with a cost of 5 or lessother than [Kouzuki Hiyori] from your hand. Then, draw 1card.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-013_p1","code":"EB01-013","rarity":"R","type":"CHARACTER","name":"Kouzuki Hiyori","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-013_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-013_p1.png?240831"},"cost":4,"power":null,"counter":"1000","color":"Green","family":"Land of Wano/Kouzuki Clan","ability":"[Activate: Main] You may trash this Character: Play up to 1{Land of Wano} type Character card with a cost of 5 or lessother than [Kouzuki Hiyori] from your hand. Then, draw 1card.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-014","code":"EB01-014","rarity":"R","type":"CHARACTER","name":"Sanji","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-014.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-014.png?240831"},"cost":4,"power":5000,"counter":"2000","color":"Green","family":"FILM/Straw Hat Crew","ability":"[DON!! x1] [Your Turn] This Character gains +1000 power forevery 3 of your rested DON!! cards.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-015","code":"EB01-015","rarity":"R","type":"CHARACTER","name":"Scratchmen Apoo","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-015.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-015.png?240831"},"cost":1,"power":1000,"counter":"2000","color":"Green","family":"Supernovas/On-Air Pirates","ability":"[On Play] Rest up to 1 of your opponent's Characters with acost of 2 or less.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-016","code":"EB01-016","rarity":"C","type":"CHARACTER","name":"Bingoh","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-016.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-016.png?240831"},"cost":1,"power":null,"counter":"1000","color":"Green","family":"Land of Wano","ability":"[Activate: Main] You may rest this Character: K.O. up to 1of your opponent's rested Characters with a cost of 1 orless.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-017","code":"EB01-017","rarity":"C","type":"CHARACTER","name":"Blueno","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-017.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-017.png?240831"},"cost":2,"power":2000,"counter":"1000","color":"Green","family":"FILM/CP0","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of the attack.)","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-018","code":"EB01-018","rarity":"C","type":"CHARACTER","name":"Mountain God","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-018.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-018.png?240831"},"cost":5,"power":7000,"counter":"1000","color":"Green","family":"Animal/Land of Wano","ability":"-","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-019","code":"EB01-019","rarity":"R","type":"EVENT","name":"Off-White","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-019.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-019.png?240831"},"cost":2,"power":null,"counter":"-","color":"Green","family":"The Seven Warlords of the Sea/Donquixote Pirates","ability":"[Counter] Up to 1 of your Leader or Character cards gains+4000 power during this battle. Then, look at 3 cards fromthe top of your deck; reveal up to 1 {Donquixote Pirates}type Character card and add it to your hand. Then, place therest at the bottom of your deck in any order.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-020","code":"EB01-020","rarity":"C","type":"EVENT","name":"Chambres","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-020.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-020.png?240831"},"cost":1,"power":null,"counter":"-","color":"Green","family":"Supernovas/Heart Pirates","ability":"[Main] If your Leader has the {Supernovas} type, return 1 ofyour Characters to the owner's hand, and play up to 1Character card with a cost of 2 or less from your hand thatis a different color than the returned Character.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-021","code":"EB01-021","rarity":"L","type":"LEADER","name":"Hannyabal","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-021.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-021.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Blue/Purple","family":"Impel Down","ability":"[End of Your Turn] You may return 1 of your {Impel Down}type Characters with a cost of 2 or more to the owner'shand: Add up to 1 DON!! card from your DON!! deck and set itas active.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-021_p1","code":"EB01-021","rarity":"L","type":"LEADER","name":"Hannyabal","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-021_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-021_p1.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Blue/Purple","family":"Impel Down","ability":"[End of Your Turn] You may return 1 of your {Impel Down}type Characters with a cost of 2 or more to the owner'shand: Add up to 1 DON!! card from your DON!! deck and set itas active.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-022","code":"EB01-022","rarity":"SR","type":"CHARACTER","name":"Inazuma","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-022.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-022.png?240831"},"cost":6,"power":7000,"counter":"1000","color":"Blue","family":"Impel Down/Revolutionary Army","ability":"[End of Your Turn] If you have 2 or less cards in your hand,draw 2 cards.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-022_p1","code":"EB01-022","rarity":"SR","type":"CHARACTER","name":"Inazuma","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-022_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-022_p1.png?240831"},"cost":6,"power":7000,"counter":"1000","color":"Blue","family":"Impel Down/Revolutionary Army","ability":"[End of Your Turn] If you have 2 or less cards in your hand,draw 2 cards.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-023","code":"EB01-023","rarity":"R","type":"CHARACTER","name":"Edward Weevil","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-023.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-023.png?240831"},"cost":4,"power":6000,"counter":"-","color":"Blue","family":"The Seven Warlords of the Sea","ability":"[On Play] Draw 1 card.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-024","code":"EB01-024","rarity":"C","type":"CHARACTER","name":"Hamlet","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-024.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-024.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Blue","family":"Animal Kingdom Pirates/SMILE","ability":"If you have 4 or less cards in your hand, all of your{SMILE} type Characters gain +1000 power.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-025","code":"EB01-025","rarity":"C","type":"CHARACTER","name":"Fourtricks","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-025.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-025.png?240831"},"cost":3,"power":5000,"counter":"1000","color":"Blue","family":"Animal Kingdom Pirates/SMILE","ability":"-","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-026","code":"EB01-026","rarity":"C","type":"CHARACTER","name":"Prince Bellett","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-026.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-026.png?240831"},"cost":2,"power":2000,"counter":"2000","color":"Blue","family":"Impel Down","ability":"[DON!! x1] [When Attacking] If you have 1 or less cards inyour hand, return up to 1 Character with a cost of 3 or lessto the owner's hand.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-027","code":"EB01-027","rarity":"R","type":"CHARACTER","name":"Mr.1(Daz.Bonez)","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-027.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-027.png?240831"},"cost":5,"power":6000,"counter":"1000","color":"Blue","family":"Baroque Works","ability":"If your Leader's type includes \"Baroque Works\", thisCharacter gains +1000 power for every 2 Events in yourtrash.<br>[On Play] Draw 2 cards and trash 1 card fromyour hand.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-027_p1","code":"EB01-027","rarity":"R","type":"CHARACTER","name":"Mr.1(Daz.Bonez)","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-027_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-027_p1.png?240831"},"cost":5,"power":6000,"counter":"1000","color":"Blue","family":"Baroque Works","ability":"If your Leader's type includes \"Baroque Works\", thisCharacter gains +1000 power for every 2 Events in yourtrash.<br>[On Play] Draw 2 cards and trash 1 card fromyour hand.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-028","code":"EB01-028","rarity":"R","type":"EVENT","name":"Gum-Gum Champion Rifle","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-028.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-028.png?240831"},"cost":1,"power":null,"counter":"-","color":"Blue","family":"Impel Down/Straw Hat Crew","ability":"[Counter] If your Leader has the {Impel Down} type, up to 1of your Leader or Character cards gains +2000 power duringthis battle. Then, your opponent returns 1 of their activeCharacters to the owner's hand.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-029","code":"EB01-029","rarity":"C","type":"EVENT","name":"Sorry. I'm a Goner.","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-029.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-029.png?240831"},"cost":1,"power":null,"counter":"-","color":"Blue","family":"East Blue/Straw Hat Crew","ability":"[Counter] Reveal 1 card from the top of your deck. If therevealed card has a cost of 4 or more, return up to 1 ofyour Characters to the owner's hand. Then, place therevealed card at the bottom of your deck.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-030","code":"EB01-030","rarity":"C","type":"STAGE","name":"Loguetown","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-030.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-030.png?240831"},"cost":2,"power":null,"counter":"-","color":"Blue","family":"East Blue","ability":"[Activate: Main] You may place this card and 1 card fromyour hand at the bottom of your deck in any order: Draw 2cards.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-031","code":"EB01-031","rarity":"R","type":"CHARACTER","name":"Kalifa","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-031.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-031.png?240831"},"cost":5,"power":5000,"counter":"1000","color":"Purple","family":"Water Seven/Galley-La Company","ability":"[On Play] DON!! −1 (You may return the specified number ofDON!! cards from your field to your DON!! deck.): If yourLeader has the {Water Seven} type, add up to 2 Charactercards with a cost of 4 or less from your trash to your hand.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-031_p1","code":"EB01-031","rarity":"R","type":"CHARACTER","name":"Kalifa","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-031_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-031_p1.png?240831"},"cost":5,"power":5000,"counter":"1000","color":"Purple","family":"Water Seven/Galley-La Company","ability":"[On Play] DON!! −1 (You may return the specified number ofDON!! cards from your field to your DON!! deck.): If yourLeader has the {Water Seven} type, add up to 2 Charactercards with a cost of 4 or less from your trash to your hand.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-032","code":"EB01-032","rarity":"C","type":"CHARACTER","name":"Army Wolves","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-032.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-032.png?240831"},"cost":5,"power":7000,"counter":"1000","color":"Purple","family":"Animal/Impel Down","ability":"-","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-033","code":"EB01-033","rarity":"R","type":"CHARACTER","name":"Blueno","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-033.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-033.png?240831"},"cost":4,"power":5000,"counter":"1000","color":"Purple","family":"Water Seven","ability":"[On Play] DON!! −1 (You may return the specified number ofDON!! cards from your field to your DON!! deck.): If yourLeader has the {Water Seven} type, play up to 1 {WaterSeven} type Character card with a cost of 5 other than[Blueno] from your hand or trash.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-034","code":"EB01-034","rarity":"SR","type":"CHARACTER","name":"Ms. Wednesday","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-034.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-034.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Purple","family":"Baroque Works","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of the attack.)<br>[OnYour Opponent's Attack] [Once Per Turn] DON!! −1 (You mayreturn the specified number of DON!! cards from your fieldto your DON!! deck.): If your Leader's type includes\"Baroque Works\", add up to 1 DON!! card from your DON!! deckand set it as active.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-034_p1","code":"EB01-034","rarity":"SR","type":"CHARACTER","name":"Ms. Wednesday","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-034_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-034_p1.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Purple","family":"Baroque Works","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of the attack.)<br>[OnYour Opponent's Attack] [Once Per Turn] DON!! −1 (You mayreturn the specified number of DON!! cards from your fieldto your DON!! deck.): If your Leader's type includes\"Baroque Works\", add up to 1 DON!! card from your DON!! deckand set it as active.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-035","code":"EB01-035","rarity":"C","type":"CHARACTER","name":"Ms. Monday","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-035.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-035.png?240831"},"cost":3,"power":5000,"counter":"-","color":"Purple","family":"Baroque Works","ability":"[On Play] If your Leader's type includes \"Baroque Works\", upto 1 of your Leader or Character cards gains +1000 powerduring this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-036","code":"EB01-036","rarity":"C","type":"CHARACTER","name":"Minochihuahua","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-036.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-036.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Purple","family":"Impel Down/Jailer Beast","ability":"[Rush] (This card can attack on the turn in which it isplayed.)<br>[On K.O.] If your Leader has the {Impel Down}type, add up to 1 DON!! card from your DON!! deck and restit.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-037","code":"EB01-037","rarity":"C","type":"CHARACTER","name":"Mr. 9","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-037.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-037.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Purple","family":"Baroque Works","ability":"[On Your Opponent's Attack] [Once Per Turn] DON!! −1 (Youmay return the specified number of DON!! cards from yourfield to your DON!! deck.): K.O. up to 1 of your opponent'sCharacters with a cost of 2 or less.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-038","code":"EB01-038","rarity":"C","type":"EVENT","name":"Oh Come My Way","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-038.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-038.png?240831"},"cost":1,"power":null,"counter":"-","color":"Purple","family":"Baroque Works","ability":"[Counter] DON!! −1 (You may return the specified number ofDON!! cards from your field to your DON!! deck.): If yourLeader's type includes \"Baroque Works\", select 1 of yourCharacters. Change the attack target to the selectedCharacter.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-039","code":"EB01-039","rarity":"R","type":"EVENT","name":"Conquerer of Three Worlds Ragnaraku","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-039.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-039.png?240831"},"cost":5,"power":null,"counter":"-","color":"Purple","family":"The Four Emperors/Animal Kingdom Pirates","ability":"[Main] DON!! −1 (You may return the specified number ofDON!! cards from your field to your DON!! deck.): K.O. up to1 of your opponent's Characters with a cost of 8 or less.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-040","code":"EB01-040","rarity":"L","type":"LEADER","name":"Kyros","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-040.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-040.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Black/Yellow","family":"Dressrosa","ability":"[Activate: Main] [Once Per Turn] You may turn 1 card fromthe top of your Life cards face-up: K.O. up to 1 of youropponent's Characters with a cost of 0.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-040_p1","code":"EB01-040","rarity":"L","type":"LEADER","name":"Kyros","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-040_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-040_p1.png?240831"},"cost":4,"power":5000,"counter":"-","color":"Black/Yellow","family":"Dressrosa","ability":"[Activate: Main] [Once Per Turn] You may turn 1 card fromthe top of your Life cards face-up: K.O. up to 1 of youropponent's Characters with a cost of 0.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-041","code":"EB01-041","rarity":"C","type":"CHARACTER","name":"Crocus","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-041.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-041.png?240831"},"cost":6,"power":8000,"counter":"1000","color":"Black","family":"Former Roger Pirates","ability":"-","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-042","code":"EB01-042","rarity":"R","type":"CHARACTER","name":"Scarlet","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-042.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-042.png?240831"},"cost":2,"power":null,"counter":"1000","color":"Black","family":"Dressrosa","ability":"[Activate: Main] You may trash this Character: Play up to 1{Dressrosa} type Character card with a cost of 3 or lessother than [Scarlet] from your hand rested. Then, give up to1 of your opponent's Characters −2 cost during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-043","code":"EB01-043","rarity":"R","type":"CHARACTER","name":"Spandine","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-043.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-043.png?240831"},"cost":3,"power":2000,"counter":"1000","color":"Black","family":"CP9","ability":"[On Play] You may place 3 cards with a type including \"CP\"from your trash at the bottom of your deck in any order:Play up to 1 Character card with a type including \"CP\" and acost of 4 or less other than [Spandine] from your trashrested.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-044","code":"EB01-044","rarity":"C","type":"CHARACTER","name":"Funkfreed","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-044.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-044.png?240831"},"cost":1,"power":1000,"counter":"1000","color":"Black","family":"CP9","ability":"[Activate: Main] You may rest this Character: Up to 1 ofyour [Spandam] Characters gains +3000 power during thisturn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-045","code":"EB01-045","rarity":"C","type":"CHARACTER","name":"Brook","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-045.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-045.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Black","family":"Rumbar Pirates","ability":"[On Play] If your opponent has a Character with a cost of 0,this Character gains [Rush] during this turn.<br>(Thiscard can attack on the turn in which it is played.)","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-046","code":"EB01-046","rarity":"SR","type":"CHARACTER","name":"Brook","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-046.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-046.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Black","family":"Straw Hat Crew","ability":"[On Play]/[When Attacking] Give up to 1 of your opponent'sCharacters −1 cost during this turn. Then, K.O. up to 1 ofyour opponent's Characters with a cost of 0.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-046_p1","code":"EB01-046","rarity":"SR","type":"CHARACTER","name":"Brook","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-046_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-046_p1.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Black","family":"Straw Hat Crew","ability":"[On Play]/[When Attacking] Give up to 1 of your opponent'sCharacters −1 cost during this turn. Then, K.O. up to 1 ofyour opponent's Characters with a cost of 0.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-047","code":"EB01-047","rarity":"C","type":"CHARACTER","name":"Laboon","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-047.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-047.png?240831"},"cost":2,"power":4000,"counter":"-","color":"Black","family":"Animal","ability":"[Once Per Turn] When a Character is K.O.'d, draw 1 card andtrash 1 card from your hand.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-048","code":"EB01-048","rarity":"SR","type":"CHARACTER","name":"Laboon","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-048.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-048.png?240831"},"cost":4,"power":5000,"counter":"1000","color":"Black","family":"Animal","ability":"[Activate: Main] You may rest this Character: Give up to 1of your opponent's Characters −4 cost during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-048_p1","code":"EB01-048","rarity":"SR","type":"CHARACTER","name":"Laboon","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-048_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-048_p1.png?240831"},"cost":4,"power":5000,"counter":"1000","color":"Black","family":"Animal","ability":"[Activate: Main] You may rest this Character: Give up to 1of your opponent's Characters −4 cost during this turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-049","code":"EB01-049","rarity":"R","type":"CHARACTER","name":"T-Bone","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-049.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-049.png?240831"},"cost":5,"power":5000,"counter":"2000","color":"Black","family":"Water Seven/Navy","ability":"[On Play] K.O. up to 1 of your opponent's Characters with acost of 2 or less.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-049_p1","code":"EB01-049","rarity":"R","type":"CHARACTER","name":"T-Bone","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-049_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-049_p1.png?240831"},"cost":5,"power":5000,"counter":"2000","color":"Black","family":"Water Seven/Navy","ability":"[On Play] K.O. up to 1 of your opponent's Characters with acost of 2 or less.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-050","code":"EB01-050","rarity":"C","type":"EVENT","name":"...I Want to Live!!","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-050.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-050.png?240831"},"cost":3,"power":null,"counter":"-","color":"Black","family":"Straw Hat Crew","ability":"[Counter] If you have 30 or more cards in your trash, add upto 1 card from the top of your deck to the top of your Lifecards.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-051","code":"EB01-051","rarity":"R","type":"EVENT","name":"Finger Pistol","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-051.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-051.png?240831"},"cost":4,"power":null,"counter":"-","color":"Black","family":"CP9","ability":"[Main] You may trash 2 cards from the top of your deck: K.O.up to 1 of your opponent's Characters with a cost of 5 orless.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-052","code":"EB01-052","rarity":"SR","type":"CHARACTER","name":"Viola","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-052.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-052.png?240831"},"cost":2,"power":null,"counter":"1000","color":"Yellow","family":"Dressrosa","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of the attack.)<br>[OnPlay] Choose one:<br>• Look at all of your opponent's Lifecards and place them back in their Life area in anyorder.<br>• Turn all of your Life cards face-down.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-052_p1","code":"EB01-052","rarity":"SR","type":"CHARACTER","name":"Viola","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-052_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-052_p1.png?240831"},"cost":2,"power":null,"counter":"1000","color":"Yellow","family":"Dressrosa","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of the attack.)<br>[OnPlay] Choose one:<br>• Look at all of your opponent's Lifecards and place them back in their Life area in anyorder.<br>• Turn all of your Life cards face-down.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-053","code":"EB01-053","rarity":"C","type":"CHARACTER","name":"Gastino","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-053.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-053.png?240831"},"cost":3,"power":5000,"counter":"-","color":"Yellow","family":"Scientist","ability":"[On Play] Place up to 1 of your opponent's Characters with acost of 3 or less at the top or bottom of your opponent'sLife cards face-up.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-054","code":"EB01-054","rarity":"R","type":"CHARACTER","name":"Gan.Fall","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-054.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-054.png?240831"},"cost":3,"power":4000,"counter":"1000","color":"Yellow","family":"Sky Island","ability":"[Blocker] (After your opponent declares an attack, you mayrest this card to make it the new target of the attack.)<br>[OnPlay] If your opponent has 1 or less Life cards, K.O. up to1 of your opponent's Characters with a cost of 3 or less.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-055","code":"EB01-055","rarity":"C","type":"CHARACTER","name":"Charlotte Compote","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-055.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-055.png?240831"},"cost":7,"power":9000,"counter":"1000","color":"Yellow","family":"Big Mom Pirates","ability":"-","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-056","code":"EB01-056","rarity":"R","type":"CHARACTER","name":"Charlotte Flampe","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-056.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-056.png?240831"},"cost":1,"power":1000,"counter":"2000","color":"Yellow","family":"Big Mom Pirates","ability":"[On Play] You may add 1 card from the top or bottom of yourLife cards to your hand: Draw 1 card.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-056_p1","code":"EB01-056","rarity":"R","type":"CHARACTER","name":"Charlotte Flampe","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-056_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-056_p1.png?240831"},"cost":1,"power":1000,"counter":"2000","color":"Yellow","family":"Big Mom Pirates","ability":"[On Play] You may add 1 card from the top or bottom of yourLife cards to your hand: Draw 1 card.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-057","code":"EB01-057","rarity":"SR","type":"CHARACTER","name":"Shirahoshi","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-057.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-057.png?240831"},"cost":2,"power":null,"counter":"1000","color":"Yellow","family":"Merfolk","ability":"When this Character is K.O.'d by your opponent's effect, addup to 1 card from the top of your deck to the top of yourLife cards.<br>[Blocker] (After your opponent declares anattack, you may rest this card to make it the new target ofthe attack.)","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-057_p1","code":"EB01-057","rarity":"SR","type":"CHARACTER","name":"Shirahoshi","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-057_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-057_p1.png?240831"},"cost":2,"power":null,"counter":"1000","color":"Yellow","family":"Merfolk","ability":"When this Character is K.O.'d by your opponent's effect, addup to 1 card from the top of your deck to the top of yourLife cards.<br>[Blocker] (After your opponent declares anattack, you may rest this card to make it the new target ofthe attack.)","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-058","code":"EB01-058","rarity":"C","type":"CHARACTER","name":"Mont Blanc Cricket","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-058.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-058.png?240831"},"cost":2,"power":3000,"counter":"1000","color":"Yellow","family":"Monkey Mountain Alliance","ability":"[DON!! x1] [Your Turn] If you have 2 or less Life cards,this Character gains +2000 power.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-059","code":"EB01-059","rarity":"R","type":"EVENT","name":"Kingdom Come","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-059.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-059.png?240831"},"cost":6,"power":null,"counter":"-","color":"Yellow","family":"Sky Island","ability":"[Main] K.O. up to 1 of your opponent's Characters. Then,trash cards from the top of your Life cards until you have 1Life card.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-060","code":"EB01-060","rarity":"C","type":"EVENT","name":"Did Someone Say...Kami?","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-060.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-060.png?240831"},"cost":4,"power":null,"counter":"-","color":"Yellow","family":"Sky Island","ability":"[Main] Play up to 1 [Enel] with a cost of 7 or less fromyour hand or trash. Then, trash cards from the top of yourLife cards until you have 1 Life card.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-061","code":"EB01-061","rarity":"SEC","type":"CHARACTER","name":"Mr.2.Bon.Kurei(Bentham)","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-061.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-061.png?240831"},"cost":4,"power":1000,"counter":"1000","color":"Purple","family":"Former Baroque Works","ability":"[On Play] Add up to 1 DON!! card from your DON!! deck andset it as active.<br>[When Attacking] Select up to 1 ofyour opponent's Characters. This Character's base powerbecomes the same as the selected Character's power duringthis turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-061_p1","code":"EB01-061","rarity":"SEC","type":"CHARACTER","name":"Mr.2.Bon.Kurei(Bentham)","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-061_p1.png?240831","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-061_p1.png?240831"},"cost":4,"power":1000,"counter":"1000","color":"Purple","family":"Former Baroque Works","ability":"[On Play] Add up to 1 DON!! card from your DON!! deck andset it as active.<br>[When Attacking] Select up to 1 ofyour opponent's Characters. This Character's base powerbecomes the same as the selected Character's power duringthis turn.","set":{"name":"-Memorial Collection- [EB-01]"}},{"id":"EB01-001_p2","code":"EB01-001","rarity":"L","type":"LEADER","name":"Kouzuki Oden","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001_p2.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-001_p2.png?250530"},"cost":4,"power":5000,"counter":"-","color":"Red/Green","family":"Land of Wano/Kouzuki Clan","ability":"All of your {Land of Wano} type Character cards without a Counter have a +1000 Counter, according to the rules.<br>[DON!! x1] [When Attacking] If you have a {Land of Wano} type Character with a cost of 5 or more, this Leader gains +1000 power until the start of your next turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB01-021_p2","code":"EB01-021","rarity":"L","type":"LEADER","name":"Hannyabal","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-021_p2.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-021_p2.png?250530"},"cost":4,"power":5000,"counter":"-","color":"Blue/Purple","family":"Impel Down","ability":"[End of Your Turn] You may return 1 of your {Impel Down} type Characters with a cost of 2 or more to the owner's hand: Add up to 1 DON!! card from your DON!! deck and set it as active.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB01-040_p2","code":"EB01-040","rarity":"L","type":"LEADER","name":"Kyros","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-040_p2.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB01-040_p2.png?250530"},"cost":4,"power":5000,"counter":"-","color":"Black/Yellow","family":"Dressrosa","ability":"[Activate: Main] [Once Per Turn] You may turn 1 card from the top of your Life cards face-up: K.O. up to 1 of your opponent's Characters with a cost of 0.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-001","code":"EB02-001","rarity":"C","type":"CHARACTER","name":"Karoo","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-001.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-001.png?250530"},"cost":5,"power":7000,"counter":"1000","color":"Red","family":"Animal/Alabasta","ability":"-","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-002","code":"EB02-002","rarity":"R","type":"CHARACTER","name":"Sabo","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-002.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-002.png?250530"},"cost":4,"power":5000,"counter":"2000","color":"Red","family":"Dressrosa/Revolutionary Army","ability":"[Activate: Main] You may rest this Character: Up to 1 of your {Revolutionary Army} type Characters other than [Sabo] gains +2000 power during this turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-003","code":"EB02-003","rarity":"R","type":"CHARACTER","name":"Tony Tony.Chopper","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-003.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-003.png?250530"},"cost":3,"power":3000,"counter":"1000","color":"Red","family":"Animal/Drum Kingdom/Straw Hat Crew","ability":"[DON!! x2] [Opponent's Turn] This Character gains +2000 power.<br>[On Play] If your Leader has the {Straw Hat Crew} type, give up to 1 rested DON!! card to your Leader or 1 of your Characters.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-003_p1","code":"EB02-003","rarity":"R","type":"CHARACTER","name":"Tony Tony.Chopper","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-003_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-003_p1.png?250530"},"cost":3,"power":3000,"counter":"1000","color":"Red","family":"Animal/Drum Kingdom/Straw Hat Crew","ability":"[DON!! x2] [Opponent's Turn] This Character gains +2000 power.<br>[On Play] If your Leader has the {Straw Hat Crew} type, give up to 1 rested DON!! card to your Leader or 1 of your Characters.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-004","code":"EB02-004","rarity":"C","type":"CHARACTER","name":"Don Accino","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-004.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-004.png?250530"},"cost":8,"power":10000,"counter":"1000","color":"Red","family":"Accino Family","ability":"-","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-005","code":"EB02-005","rarity":"C","type":"CHARACTER","name":"Fake Straw Hat Crew","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-005.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-005.png?250530"},"cost":2,"power":3000,"counter":"-","color":"Red","family":"Fake Straw Hat Crew","ability":"[Your Turn] This Character gains +2000 power.<br>[Opponent's Turn] Give this Character −2000 power.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-006","code":"EB02-006","rarity":"SR","type":"CHARACTER","name":"Yamato","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-006.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-006.png?250530"},"cost":6,"power":7000,"counter":"-","color":"Red","family":"Land of Wano","ability":"[Activate: Main] [Once Per Turn] If your Leader has the {Land of Wano} type or is [Portgas.D.Ace], give up to 1 rested DON!! card to 1 of your Leader. Then, this Character gains [Rush] during this turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-006_p1","code":"EB02-006","rarity":"SR","type":"CHARACTER","name":"Yamato","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-006_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-006_p1.png?250530"},"cost":6,"power":7000,"counter":"-","color":"Red","family":"Land of Wano","ability":"[Activate: Main] [Once Per Turn] If your Leader has the {Land of Wano} type or is [Portgas.D.Ace], give up to 1 rested DON!! card to 1 of your Leader. Then, this Character gains [Rush] during this turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-007","code":"EB02-007","rarity":"C","type":"EVENT","name":"Cloven Rose Blizzard","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-007.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-007.png?250530"},"cost":3,"power":null,"counter":"-","color":"Red","family":"Animal/Water Seven/Straw Hat Crew","ability":"[Main] Up to a total of 3 of your Leader and Character cards gain +1000 power during this turn. Then, K.O. up to 1 of your opponent's Characters with 3000 power or less.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-008","code":"EB02-008","rarity":"R","type":"EVENT","name":"The Peak","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-008.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-008.png?250530"},"cost":2,"power":null,"counter":"-","color":"Red","family":"Music","ability":"[Main] Look at 4 cards from the top of your deck; reveal up to 1 card with a cost of 4 or more and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-009","code":"EB02-009","rarity":"C","type":"STAGE","name":"Thousand Sunny","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-009.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-009.png?250530"},"cost":2,"power":null,"counter":"-","color":"Red","family":"Straw Hat Crew","ability":"[Activate: Main] You may rest this Stage: Give up to 1 of your currently given DON!! cards to 1 of your {Straw Hat Crew} type Characters.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-010","code":"EB02-010","rarity":"L","type":"LEADER","name":"Monkey.D.Luffy","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-010.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-010.png?250530"},"cost":4,"power":5000,"counter":"-","color":"Green/Purple","family":"Straw Hat Crew","ability":"[Activate: Main] [Once Per Turn] DON!! −2: If the only Characters on your field are {Straw Hat Crew} type Characters, set up to 2 of your DON!! cards as active. Then, this Leader gains +1000 power until the end of your opponent's next turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-010_p1","code":"EB02-010","rarity":"L","type":"LEADER","name":"Monkey.D.Luffy","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-010_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-010_p1.png?250530"},"cost":4,"power":5000,"counter":"-","color":"Green/Purple","family":"Straw Hat Crew","ability":"[Activate: Main] [Once Per Turn] DON!! −2: If the only Characters on your field are {Straw Hat Crew} type Characters, set up to 2 of your DON!! cards as active. Then, this Leader gains +1000 power until the end of your opponent's next turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-011","code":"EB02-011","rarity":"SR","type":"CHARACTER","name":"Arlong","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-011.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-011.png?250530"},"cost":3,"power":4000,"counter":"1000","color":"Green","family":"Fish-Man/East Blue/Arlong Pirates","ability":"[On Play] If your Leader has the {Fish-Man} or {East Blue} type, give up to 1 rested DON!! card to 1 of your Leader. Then, up to 1 of your opponent's Characters with a cost of 5 or less cannot be rested until the end of your opponent's next turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-011_p1","code":"EB02-011","rarity":"SR","type":"CHARACTER","name":"Arlong","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-011_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-011_p1.png?250530"},"cost":3,"power":4000,"counter":"1000","color":"Green","family":"Fish-Man/East Blue/Arlong Pirates","ability":"[On Play] If your Leader has the {Fish-Man} or {East Blue} type, give up to 1 rested DON!! card to 1 of your Leader. Then, up to 1 of your opponent's Characters with a cost of 5 or less cannot be rested until the end of your opponent's next turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-012","code":"EB02-012","rarity":"C","type":"CHARACTER","name":"Gaimon","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-012.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-012.png?250530"},"cost":1,"power":1000,"counter":"1000","color":"Green","family":"East Blue","ability":"If you have a [Sarfunkel], this Character gains [Blocker].","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-013","code":"EB02-013","rarity":"C","type":"CHARACTER","name":"Carrot","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-013.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-013.png?250530"},"cost":1,"power":null,"counter":"2000","color":"Green","family":"Minks","ability":"[On Play] If you have 3 or more DON!! cards on your field, look at 7 cards from the top of your deck; reveal up to 1 [Zou] and add it to your hand. Then, place the rest at the bottom of your deck in any order and play up to 1 [Zou] from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-014","code":"EB02-014","rarity":"C","type":"CHARACTER","name":"Sarfunkel","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-014.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-014.png?250530"},"cost":2,"power":null,"counter":"1000","color":"Green","family":"East Blue","ability":"[On Play] Play up to 1 [Gaimon] from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-015","code":"EB02-015","rarity":"SR","type":"CHARACTER","name":"Jewelry Bonney","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-015.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-015.png?250530"},"cost":7,"power":7000,"counter":"1000","color":"Green","family":"Supernovas/Bonney Pirates","ability":"[On Play] Up to 1 of your opponent's rested Characters will not become active in your opponent's next Refresh Phase. Then, set up to 1 of your DON!! cards as active at the end of this turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-015_p1","code":"EB02-015","rarity":"SR","type":"CHARACTER","name":"Jewelry Bonney","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-015_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-015_p1.png?250530"},"cost":7,"power":7000,"counter":"1000","color":"Green","family":"Supernovas/Bonney Pirates","ability":"[On Play] Up to 1 of your opponent's rested Characters will not become active in your opponent's next Refresh Phase. Then, set up to 1 of your DON!! cards as active at the end of this turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-016","code":"EB02-016","rarity":"C","type":"CHARACTER","name":"Chopperman","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-016.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-016.png?250530"},"cost":5,"power":6000,"counter":"1000","color":"Green","family":"Animal/Straw Hat Crew","ability":"Also treat this card's name as [Tony Tony.Chopper] according to the rules.<br>[On Play] Play up to 1 {Animal} type Character card with a cost of 3 or less from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-017","code":"EB02-017","rarity":"R","type":"CHARACTER","name":"Nami","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-017.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-017.png?250530"},"cost":1,"power":2000,"counter":"1000","color":"Green","family":"East Blue/Straw Hat Crew","ability":"[On Play] Look at 5 cards from the top of your deck; reveal up to 1 {Straw Hat Crew} type card other than [Nami] and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-017_p1","code":"EB02-017","rarity":"R","type":"CHARACTER","name":"Nami","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-017_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-017_p1.png?250530"},"cost":1,"power":2000,"counter":"1000","color":"Green","family":"East Blue/Straw Hat Crew","ability":"[On Play] Look at 5 cards from the top of your deck; reveal up to 1 {Straw Hat Crew} type card other than [Nami] and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-018","code":"EB02-018","rarity":"R","type":"CHARACTER","name":"Buggy","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-018.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-018.png?250530"},"cost":4,"power":6000,"counter":"-","color":"Green","family":"East Blue/Buggy Pirates","ability":"[On Play] If you have no other [Buggy] Characters, up to 1 of your Leader gains [Double Attack] during this turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-019","code":"EB02-019","rarity":"R","type":"CHARACTER","name":"Roronoa Zoro","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-019.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-019.png?250530"},"cost":4,"power":5000,"counter":"1000","color":"Green","family":"East Blue/Straw Hat Crew","ability":"If your opponent has 2 or more Characters, this Character can attack Characters on the turn in which it is played.<br>[On Play] If your Leader has the {Straw Hat Crew} type, rest up to 1 of your opponent's Characters with a cost of 4 or less.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-020","code":"EB02-020","rarity":"R","type":"EVENT","name":"We Are!","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-020.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-020.png?250530"},"cost":2,"power":null,"counter":"-","color":"Green","family":"Music","ability":"[Main] Look at 4 cards from the top of your deck; reveal up to 1 card with a cost of 4 or more and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-021","code":"EB02-021","rarity":"C","type":"EVENT","name":"Gum-Gum Giant Pistol","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-021.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-021.png?250530"},"cost":3,"power":null,"counter":"-","color":"Green","family":"Water Seven/Straw Hat Crew","ability":"[Main] Up to 1 of your {Straw Hat Crew} type Characters gains +6000 power during this turn. Then, the selected Character will not become active in your next Refresh Phase.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-022","code":"EB02-022","rarity":"R","type":"CHARACTER","name":"Usopp","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-022.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-022.png?250530"},"cost":4,"power":5000,"counter":"1000","color":"Blue","family":"East Blue/Straw Hat Crew","ability":"[On Play] If you have 2 or less Characters with 5000 power or more, play up to 1 Character card with 6000 power or less and no base effect from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-022_p1","code":"EB02-022","rarity":"R","type":"CHARACTER","name":"Usopp","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-022_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-022_p1.png?250530"},"cost":4,"power":5000,"counter":"1000","color":"Blue","family":"East Blue/Straw Hat Crew","ability":"[On Play] If you have 2 or less Characters with 5000 power or more, play up to 1 Character card with 6000 power or less and no base effect from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-023","code":"EB02-023","rarity":"C","type":"CHARACTER","name":"Crocodile","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-023.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-023.png?250530"},"cost":4,"power":5000,"counter":"1000","color":"Blue","family":"The Seven Warlords of the Sea/Baroque Works","ability":"[Your Turn] [Once Per Turn] When your opponent's Character is returned to the owner's hand by your effect, look at 3 cards from the top of your deck and place them at the top or bottom of the deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-024","code":"EB02-024","rarity":"C","type":"CHARACTER","name":"Sogeking","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-024.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-024.png?250530"},"cost":4,"power":5000,"counter":"1000","color":"Blue","family":"Sniper Island","ability":"Also treat this card's name as [Usopp] according to the rules.<br>[On Play] Draw 2 cards and place 2 cards from your hand at the bottom of your deck in any order. Then, return up to 1 Character with a cost of 1 or less to the owner's hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-025","code":"EB02-025","rarity":"R","type":"CHARACTER","name":"Donquixote Rosinante","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-025.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-025.png?250530"},"cost":2,"power":3000,"counter":"1000","color":"Blue","family":"Navy/Donquixote Pirates","ability":"[Activate: Main] You may rest 1 of your DON!! cards and this Character: If your Leader is [Donquixote Rosinante], look at 5 cards from the top of your deck; play up to 1 Character card with a cost of 2 or less rested. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-026","code":"EB02-026","rarity":"SR","type":"CHARACTER","name":"Nefeltari Vivi","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-026.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-026.png?250530"},"cost":3,"power":2000,"counter":"1000","color":"Blue","family":"Alabasta","ability":"[On Play] If your Leader is multicolored and you have 5 or less cards in your hand, draw 2 cards.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-026_p1","code":"EB02-026","rarity":"SR","type":"CHARACTER","name":"Nefeltari Vivi","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-026_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-026_p1.png?250530"},"cost":3,"power":2000,"counter":"1000","color":"Blue","family":"Alabasta","ability":"[On Play] If your Leader is multicolored and you have 5 or less cards in your hand, draw 2 cards.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-027","code":"EB02-027","rarity":"C","type":"CHARACTER","name":"Vista","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-027.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-027.png?250530"},"cost":4,"power":5000,"counter":"1000","color":"Blue","family":"Whitebeard Pirates","ability":"[On Play] Place up to 1 of your opponent's Characters with 1000 power or less at the bottom of the owner's deck.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-028","code":"EB02-028","rarity":"R","type":"CHARACTER","name":"Portgas.D.Ace","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-028.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-028.png?250530"},"cost":5,"power":5000,"counter":"1000","color":"Blue","family":"Alabasta/Whitebeard Pirates","ability":"[On Play] If your Leader's type includes \"Whitebeard Pirates\", look at 5 cards from the top of your deck; reveal up to 1 Character card with a cost of 2 and add it to your hand. Then, place the rest at the bottom of your deck in any order and play up to 1 Character card with a cost of 2 from your hand rested.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-029","code":"EB02-029","rarity":"C","type":"CHARACTER","name":"Grandpa Ryu","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-029.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-029.png?250530"},"cost":3,"power":5000,"counter":"1000","color":"Blue","family":"Animal/East Blue","ability":"-","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-030","code":"EB02-030","rarity":"C","type":"EVENT","name":"And That's When Somebody Makes Fun of Their Friend's Dream!!!!","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-030.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-030.png?250530"},"cost":2,"power":null,"counter":"-","color":"Blue","family":"Alabasta/Straw Hat Crew","ability":"[Counter] If any of your Characters would be K.O.'d in battle during this turn, you may trash 1 card from your hand instead.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-031","code":"EB02-031","rarity":"R","type":"EVENT","name":"Hope","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-031.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-031.png?250530"},"cost":2,"power":null,"counter":"-","color":"Blue","family":"Music","ability":"[Main] Look at 4 cards from the top of your deck; reveal up to 1 card with a cost of 4 or more and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-032","code":"EB02-032","rarity":"C","type":"CHARACTER","name":"Iceburg","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-032.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-032.png?250530"},"cost":1,"power":null,"counter":"2000","color":"Purple","family":"Water Seven/Galley-La Company","ability":"[On Play] If you have 3 or more DON!! cards on your field, look at 7 cards from the top of your deck; reveal up to 1 [Galley-La Company] and add it to your hand. Then, place the rest at the bottom of your deck in any order and play up to 1 [Galley-La Company] from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-033","code":"EB02-033","rarity":"C","type":"CHARACTER","name":"Klabautermann","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-033.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-033.png?250530"},"cost":1,"power":null,"counter":"1000","color":"Purple","family":"Sprite","ability":"If you have [Merry Go] on your field, this Character gains [Blocker].","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-034","code":"EB02-034","rarity":"C","type":"CHARACTER","name":"Komei","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-034.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-034.png?250530"},"cost":4,"power":6000,"counter":"1000","color":"Purple","family":"Navy/Foxy Pirates","ability":"-","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-035","code":"EB02-035","rarity":"SR","type":"CHARACTER","name":"Sanji & Pudding","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-035.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-035.png?250530"},"cost":5,"power":7000,"counter":"-","color":"Purple","family":"Big Mom Pirates/Straw Hat Crew","ability":"[Your Turn] [Once Per Turn] When 2 or more DON!! cards on your field are returned to your DON!! deck, add up to 1 DON!! card from your DON!! deck and set it as active.<br>[On Play] If the number of DON!! cards on your field is equal to or less than the number on your opponent's field, draw 1 card.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-035_p1","code":"EB02-035","rarity":"SR","type":"CHARACTER","name":"Sanji & Pudding","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-035_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-035_p1.png?250530"},"cost":5,"power":7000,"counter":"-","color":"Purple","family":"Big Mom Pirates/Straw Hat Crew","ability":"[Your Turn] [Once Per Turn] When 2 or more DON!! cards on your field are returned to your DON!! deck, add up to 1 DON!! card from your DON!! deck and set it as active.<br>[On Play] If the number of DON!! cards on your field is equal to or less than the number on your opponent's field, draw 1 card.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-036","code":"EB02-036","rarity":"R","type":"CHARACTER","name":"Nico Robin","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-036.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-036.png?250530"},"cost":3,"power":2000,"counter":"1000","color":"Purple","family":"Straw Hat Crew","ability":"[Blocker]<br>[On K.O.] DON!! −1: Look at 3 cards from the top of your deck; reveal up to 1 {Straw Hat Crew} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-036_p1","code":"EB02-036","rarity":"R","type":"CHARACTER","name":"Nico Robin","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-036_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-036_p1.png?250530"},"cost":3,"power":2000,"counter":"1000","color":"Purple","family":"Straw Hat Crew","ability":"[Blocker]<br>[On K.O.] DON!! −1: Look at 3 cards from the top of your deck; reveal up to 1 {Straw Hat Crew} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-037","code":"EB02-037","rarity":"R","type":"CHARACTER","name":"Franky","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-037.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-037.png?250530"},"cost":3,"power":4000,"counter":"1000","color":"Purple","family":"Water Seven/Straw Hat Crew","ability":"[On Play]/[When Attacking] If your Leader has the {Straw Hat Crew} type and the number of DON!! cards on your field is equal to or less than the number on your opponent's field, add up to 1 DON!! card from your DON!! deck and rest it.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-038","code":"EB02-038","rarity":"C","type":"CHARACTER","name":"Magellan","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-038.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-038.png?250530"},"cost":3,"power":4000,"counter":"1000","color":"Purple","family":"Impel Down","ability":"[On Play] Play up to 1 {Impel Down} type Character card with a cost of 2 or less from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-039","code":"EB02-039","rarity":"C","type":"EVENT","name":"GERMA 66","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-039.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-039.png?250530"},"cost":4,"power":null,"counter":"-","color":"Purple","family":"The Vinsmoke Family/GERMA 66","ability":"[Main] You may trash 1 {GERMA 66} type Character card with 4000 power or less from your hand: If the number of DON!! cards on your field is equal to or less than the number on your opponent's field, play up to 1 Character card with 5000 to 7000 power and the same card name as the trashed card from your trash.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-040","code":"EB02-040","rarity":"R","type":"EVENT","name":"BRAND NEW WORLD","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-040.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-040.png?250530"},"cost":2,"power":null,"counter":"-","color":"Purple","family":"Music","ability":"[Main] Look at 4 cards from the top of your deck; reveal up to 1 card with a cost of 4 or more and add it to your hand. Then, place the rest at the bottom of your deck in any order.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-041","code":"EB02-041","rarity":"R","type":"STAGE","name":"Merry Go","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-041.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-041.png?250530"},"cost":1,"power":null,"counter":"-","color":"Purple","family":"Straw Hat Crew","ability":"[On Play] If your Leader has the {Straw Hat Crew} type, draw 1 card.<br>[Activate: Main] You may rest this Stage: If the number of DON!! cards on your field is equal to or less than the number on your opponent's field, up to 1 of your {Straw Hat Crew} type Characters gains +2 cost until the end of your opponent's next turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-042","code":"EB02-042","rarity":"C","type":"CHARACTER","name":"All-Hunt Grount","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-042.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-042.png?250530"},"cost":6,"power":8000,"counter":"1000","color":"Black","family":"Navy","ability":"-","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-043","code":"EB02-043","rarity":"C","type":"CHARACTER","name":"Jonathan","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-043.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-043.png?250530"},"cost":7,"power":9000,"counter":"1000","color":"Black","family":"Navy","ability":"-","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-044","code":"EB02-044","rarity":"SR","type":"CHARACTER","name":"Sengoku","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-044.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-044.png?250530"},"cost":7,"power":7000,"counter":"1000","color":"Black","family":"Navy","ability":"[Blocker]<br>[On Play] Play up to 1 black {Navy} type Character card with a cost of 4 or less from your trash rested.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-044_p1","code":"EB02-044","rarity":"SR","type":"CHARACTER","name":"Sengoku","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-044_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-044_p1.png?250530"},"cost":7,"power":7000,"counter":"1000","color":"Black","family":"Navy","ability":"[Blocker]<br>[On Play] Play up to 1 black {Navy} type Character card with a cost of 4 or less from your trash rested.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-045","code":"EB02-045","rarity":"SR","type":"CHARACTER","name":"Trafalgar Law","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-045.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-045.png?250530"},"cost":5,"power":6000,"counter":"1000","color":"Black","family":"Dressrosa/Supernovas/Heart Pirates","ability":"[Blocker]<br>[On Play] You may place 2 cards from your trash at the bottom of your deck in any order: Choose one:<br>• Draw 1 card.<br>• If your opponent has 5 or more cards in their hand, your opponent trashes 1 card from their hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-045_p1","code":"EB02-045","rarity":"SR","type":"CHARACTER","name":"Trafalgar Law","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-045_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-045_p1.png?250530"},"cost":5,"power":6000,"counter":"1000","color":"Black","family":"Dressrosa/Supernovas/Heart Pirates","ability":"[Blocker]<br>[On Play] You may place 2 cards from your trash at the bottom of your deck in any order: Choose one:<br>• Draw 1 card.<br>• If your opponent has 5 or more cards in their hand, your opponent trashes 1 card from their hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-046","code":"EB02-046","rarity":"C","type":"CHARACTER","name":"Hildon","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-046.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-046.png?250530"},"cost":3,"power":3000,"counter":"2000","color":"Black","family":"Thriller Bark Pirates","ability":"[On Play] Trash 2 cards from the top of your deck and give up to 1 of your opponent's Characters −1 cost during this turn.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-047","code":"EB02-047","rarity":"C","type":"CHARACTER","name":"Blueno","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-047.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-047.png?250530"},"cost":5,"power":6000,"counter":"1000","color":"Black","family":"CP9","ability":"[Activate: Main] You may trash 1 card from your hand and trash this Character: Play up to 1 Character card with a type including \"CP\" and a cost of 5 or less other than [Blueno] from your trash.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-048","code":"EB02-048","rarity":"R","type":"CHARACTER","name":"Brook","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-048.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-048.png?250530"},"cost":5,"power":6000,"counter":"1000","color":"Black","family":"Straw Hat Crew","ability":"[On Play] Add up to 1 [Laboon] from your trash to your hand.<br>[On K.O.] Play up to 1 [Laboon] with a cost of 4 or less from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-048_p1","code":"EB02-048","rarity":"R","type":"CHARACTER","name":"Brook","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-048_p1.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-048_p1.png?250530"},"cost":5,"power":6000,"counter":"1000","color":"Black","family":"Straw Hat Crew","ability":"[On Play] Add up to 1 [Laboon] from your trash to your hand.<br>[On K.O.] Play up to 1 [Laboon] with a cost of 4 or less from your hand.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-049","code":"EB02-049","rarity":"R","type":"CHARACTER","name":"Monkey.D.Garp","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-049.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-049.png?250530"},"cost":5,"power":6000,"counter":"-","color":"Black","family":"Navy","ability":"[On Play] Give up to 2 rested DON!! cards to 1 of your Leader.<br>[Activate: Main] You may rest this Character: If your Leader is [Monkey.D.Garp], K.O. up to 1 of your opponent's Characters with a cost of 1 or less.","set":{"name":"-Anime 25th Collection- [EB-02]"}},{"id":"EB02-050","code":"EB02-050","rarity":"R","type":"EVENT","name":"Kokoro no Chizu","images":{"small":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-050.png?250530","large":"https://en.onepiece-cardgame.com/images/cardlist/card/EB02-050.png?250530"},"cost":2,"power":null,"counter":"-","color":"Black","family":"Music","ability":"[Main] Look at 4 cards from the top of your deck; reveal up to 1 card with a cost of 4 or more and add it to your hand. Th
+// === CONFIG ===
+const PAGE_SIZE = 60;
+
+// Image URL builders for each language. 
+// IMPORTANT: Verify the 'sc' URL pattern if your SC images are hosted elsewhere.
+const IMAGE_URLS = {
+  en: (cardId) => `https://en.onepiece-cardgame.com/images/cardlist/card/${cardId}.png?240831`,
+  jp: (cardId) => `https://www.onepiece-cardgame.com/images/cardlist/card/${cardId}.png?240831`,
+  sc: (cardId) => `https://asia-sc.onepiece-cardgame.com/images/cardlist/card/${cardId}.png?240831` // UPDATE THIS if needed
+};
+
+// === STATE ===
+let currentLang = localStorage.getItem('op_dex_lang') || 'en';
+let filteredCards = [];
+let visibleCount = 0;
+let activeFilters = { color: new Set(), type: new Set(), rarity: new Set() };
+
+// === DOM REFS ===
+const grid = document.getElementById('grid');
+const filterCount = document.getElementById('filter-count');
+const totalCount = document.getElementById('total-count');
+const searchInput = document.getElementById('search-input');
+const filterPanel = document.getElementById('filter-panel');
+const filterToggle = document.getElementById('filter-toggle');
+const clearBtn = document.getElementById('clear-btn');
+const loadMoreWrap = document.getElementById('load-more-wrap');
+const remainingEl = document.getElementById('remaining');
+const emptyEl = document.getElementById('empty');
+const modal = document.getElementById('modal');
+const modalId = document.getElementById('modal-id');
+const modalBody = document.getElementById('modal-body');
+
+// === LANGUAGE SWITCHER ===
+function setLang(lang) {
+  if (lang === currentLang) return;
+  currentLang = lang;
+  localStorage.setItem('op_dex_lang', lang);
+  
+  // Update pill UI
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === lang);
+  });
+  
+  // Reset pagination and re-render with new language images
+  visibleCount = 0;
+  renderPage();
+}
+
+function initLangSwitcher() {
+  document.querySelectorAll('.lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === currentLang);
+  });
+}
+
+// === IMAGE HELPERS ===
+function getImageUrl(card) {
+  // If your data ever has explicit per-language overrides, use them
+  if (card.images && card.images[currentLang]) {
+    return card.images[currentLang];
+  }
+  const builder = IMAGE_URLS[currentLang];
+  return builder ? builder(card.id) : '';
+}
+
+function getSetColor(setNameOrCode) {
+  const text = setNameOrCode || '';
+  const match = text.match(/^(OP\d+|EB\d+|ST\d+|P)/i);
+  const code = match ? match[1].toUpperCase() : 'OP';
+  const colors = {
+    'OP01':'#e94560','OP02':'#0f3460','OP03':'#533483','OP04':'#f39422',
+    'OP05':'#16c79a','OP06':'#ef476f','OP07':'#118ab2','OP08':'#073b4c',
+    'OP09':'#ffd166','OP10':'#06d6a0','OP11':'#fb8500','OP12':'#8338ec',
+    'OP13':'#ff006e','OP14':'#3a86ff','OP15':'#06ffa5','EB01':'#ffbe0b',
+    'EB02':'#ff006e','ST':'#8ac926','P':'#c77dff'
+  };
+  return colors[code] || '#555';
+}
+
+function getColorDot(color) {
+  if (!color) return '#666';
+  const c = color.toLowerCase();
+  if (c.includes('red')) return '#ef4444';
+  if (c.includes('green')) return '#22c55e';
+  if (c.includes('blue')) return '#3b82f6';
+  if (c.includes('purple')) return '#a855f7';
+  if (c.includes('black')) return '#1f2937';
+  if (c.includes('yellow')) return '#eab308';
+  return '#666';
+}
+
+// === RENDERING ===
+function createCardHTML(card) {
+  const imgUrl = getImageUrl(card);
+  const setColor = getSetColor(card.set?.name || card.code);
+  
+  return `
+    <div class="card" onclick="openModal('${card.id}')">
+      <div class="card-img-wrap">
+        <img src="${imgUrl}" alt="${escapeHtml(card.name)}" loading="lazy" 
+          onerror="this.style.display='none'; this.parentElement.querySelector('.fallback').classList.add('show');">
+        <div class="fallback" style="background:${setColor}">
+          <div class="set-code">${escapeHtml(card.code)}</div>
+          <div class="card-code">${escapeHtml(card.id)}</div>
+        </div>
+        ${card.rarity ? `<div class="rarity-badge">${escapeHtml(card.rarity)}</div>` : ''}
+      </div>
+      <div class="card-meta">
+        <div class="id">${escapeHtml(card.code)}</div>
+        <div class="name">${escapeHtml(card.name)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPage() {
+  const toShow = filteredCards.slice(0, visibleCount + PAGE_SIZE);
+  visibleCount = toShow.length;
+  
+  if (toShow.length === 0) {
+    grid.innerHTML = '';
+    emptyEl.style.display = '';
+    loadMoreWrap.style.display = 'none';
+  } else {
+    grid.innerHTML = toShow.map(createCardHTML).join('');
+    emptyEl.style.display = 'none';
+  }
+  
+  filterCount.textContent = filteredCards.length;
+  totalCount.textContent = ALL_CARDS.length;
+  
+  const remaining = filteredCards.length - visibleCount;
+  if (remaining > 0) {
+    loadMoreWrap.style.display = '';
+    remainingEl.textContent = remaining;
+  } else {
+    loadMoreWrap.style.display = 'none';
+  }
+}
+
+function loadMore() {
+  visibleCount += PAGE_SIZE;
+  renderPage();
+}
+
+// === FILTERS ===
+function toggleFilters() {
+  filterPanel.classList.toggle('open');
+  filterToggle.classList.toggle('active');
+}
+
+function clearFilters() {
+  activeFilters = { color: new Set(), type: new Set(), rarity: new Set() };
+  searchInput.value = '';
+  document.querySelectorAll('.pill').forEach(p => {
+    p.classList.remove('active', 'color-active');
+  });
+  clearBtn.style.display = 'none';
+  applyFilters();
+}
+
+function applyFilters() {
+  const query = searchInput.value.toLowerCase().trim();
+  
+  filteredCards = ALL_CARDS.filter(card => {
+    if (query) {
+      const haystack = `${card.name} ${card.code} ${card.id} ${card.type} ${card.rarity} ${card.color}`.toLowerCase();
+      if (!haystack.includes(query)) return false;
+    }
+    
+    if (activeFilters.color.size > 0) {
+      const cardColor = (card.color || '').toLowerCase();
+      const has = Array.from(activeFilters.color).some(c => cardColor.includes(c.toLowerCase()));
+      if (!has) return false;
+    }
+    
+    if (activeFilters.type.size > 0) {
+      if (!activeFilters.type.has(card.type)) return false;
+    }
+    
+    if (activeFilters.rarity.size > 0) {
+      if (!activeFilters.rarity.has(card.rarity)) return false;
+    }
+    
+    return true;
+  });
+  
+  visibleCount = 0;
+  renderPage();
+  
+  const hasActive = activeFilters.color.size + activeFilters.type.size + activeFilters.rarity.size > 0 || query;
+  clearBtn.style.display = hasActive ? '' : 'none';
+}
+
+function makePill(text, group, containerId) {
+  const pill = document.createElement('button');
+  pill.className = 'pill';
+  pill.textContent = text;
+  
+  if (group === 'color') {
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    const map = {
+      'red':'#ef4444','green':'#22c55e','blue':'#3b82f6',
+      'purple':'#a855f7','black':'#1f2937','yellow':'#eab308',
+      'red/green':'linear-gradient(135deg,#ef4444 50%,#22c55e 50%)'
+    };
+    dot.style.background = map[text.toLowerCase()] || '#666';
+    pill.prepend(dot);
+  }
+  
+  pill.onclick = () => {
+    const set = activeFilters[group];
+    if (set.has(text)) {
+      set.delete(text);
+      pill.classList.remove('active');
+      if (group === 'color') pill.classList.remove('color-active');
+    } else {
+      set.add(text);
+      pill.classList.add('.add('active');
+      if (group === 'color') pill.classList.add('color-active');
+    }
+    applyFilters();
+  };
+  
+  document.getElementById(containerId).appendChild(pill);
+}
+
+function initFilters() {
+  const colors = new Set(), types = new Set(), rarities = new Set();
+  
+  ALL_CARDS.forEach(c => {
+    if (c.color) c.color.split('/').forEach(x => colors.add(x.trim()));
+    if (c.type) types.add(c.type);
+    if (c.rarity) rarities.add(c.rarity);
+  });
+  
+  Array.from(colors).sort().forEach(c => makePill(c, 'color', 'color-pills'));
+  Array.from(types).sort().forEach(t => makePill(t, 'type', 'type-pills'));
+  Array.from(rarities).sort().forEach(r => makePill(r, 'rarity', 'rarity-pills'));
+}
+
+// === MODAL ===
+function openModal(cardId) {
+  const card = ALL_CARDS.find(c => c.id === cardId);
+  if (!card) return;
+  
+  modalId.textContent = `${card.code} · ${card.rarity || '-'} · ${card.type || '-'}`;
+  
+  const imgUrl = getImageUrl(card);
+  const setColor = getSetColor(card.set?.name || card.code);
+  
+  modalBody.innerHTML = `
+    <div class="modal-img">
+      <img src="${imgUrl}" alt="${escapeHtml(card.name)}" 
+        onerror="this.style.display='none'; this.parentElement.style.background='${setColor}'; this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;\\'><div style=\\'font-family:Bebas Neue,sans-serif;font-size:40px;\\'>${card.code}</div><div style=\\'font-size:14px;margin-top:8px;\\'>${card.id}</div></div>';">
+    </div>
+    <div class="modal-name">${escapeHtml(card.name)}</div>
+    <div class="modal-family">${escapeHtml(card.family || '')}</div>
+    <div class="stat-row">
+      <div class="stat-cell"><div class="lbl">Cost</div><div class="val">${card.cost ?? '-'}</div></div>
+      <div class="stat-cell"><div class="lbl">Power</div><div class="val">${card.power ?? '-'}</div></div>
+      <div class="stat-cell"><div class="lbl">Counter</div><div class="val">${card.counter ?? '-'}</div></div>
+    </div>
+    <div class="info-row"><div class="info-lbl">Color</div><div class="info-val"><span class="color-tag"><span class="dot" style="background:${getColorDot(card.color)}"></span>${escapeHtml(card.color || '-')}</span></div></div>
+    <div class="info-row"><div class="info-lbl">Set</div><div class="info-val">${escapeHtml(card.set?.name || '-')}</div></div>
+    ${card.ability ? `<div class="ability-box"><div class="ability-lbl">Ability</div><div class="ability-text">${card.ability}</div></div>` : ''}
+  `;
+  
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e && e.target !== modal && !e.target.closest('.modal-backdrop-area')) return; // allow clicking overlay only
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// === UTILS ===
+function escapeHtml(text) {
+  if (text == null) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// === INIT ===
+searchInput.addEventListener('input', applyFilters);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+initLangSwitcher();
+initFilters();
+applyFilters();
+</script>
