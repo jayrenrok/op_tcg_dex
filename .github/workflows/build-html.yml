@@ -1,0 +1,47 @@
+name: Build HTML
+
+# Runs whenever the template or card data changes.
+# Injects Supabase secrets into the template and commits index.html.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'template.html'
+      - 'all_cards.json'
+      - 'build_html.py'
+      - '.github/workflows/build-html.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build index.html
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python build_html.py template.html all_cards.json index.html
+
+      - name: Commit and push index.html
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [[ -n "$(git status --porcelain index.html)" ]]; then
+            git add index.html
+            git commit -m "chore: rebuild index.html [skip ci]"
+            git push
+            echo "Pushed updated index.html"
+          else
+            echo "No changes to index.html"
+          fi
