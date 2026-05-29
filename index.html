@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v20 -->
+<!-- build: v21 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -657,64 +657,116 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
 }
 
 /* ===== Set grid (Sets tab) ===== */
+/* v21: Set browser — compact tiles, grouped by sub-section, category tabs above */
 .set-grid {
+  display: block;
+}
+
+/* Category tabs row (Main / Promo / Special / Deck) */
+.set-cat-tabs {
+  display: flex; gap: 6px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.set-cat-tab {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px; font-weight: 600;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #8B92A8;
+  transition: all 0.15s;
+}
+.set-cat-tab.active {
+  background: rgba(245,158,11,0.12);
+  border-color: rgba(245,158,11,0.4);
+  color: #F59E0B;
+}
+.set-cat-tab:not(.active):hover { color: #FAF7F2; }
+
+/* Sub-section header (One Piece / Extra Booster / Starter Deck / etc.) */
+.set-subsection-header {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.18em;
+  color: #8B92A8;
+  text-transform: uppercase;
+  margin: 12px 2px 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.set-subsection-header:first-child { margin-top: 0; }
+
+/* Compact set tiles — 2 cols mobile, 3 cols tablet */
+.set-tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
-@media (min-width: 540px) { .set-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 768px) { .set-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 540px) { .set-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 768px) { .set-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 .set-card {
   position: relative;
-  padding: 16px 14px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
   background: linear-gradient(135deg, rgba(245,158,11,0.06) 0%, rgba(20,26,41,0.4) 100%);
   border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px;
+  border-radius: 10px;
   text-align: left;
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
   overflow: hidden;
   min-width: 0;
+  min-height: 56px;
 }
-.set-card:hover {
-  transform: translateY(-2px);
+.set-card:hover, .set-card:active {
   border-color: rgba(245,158,11,0.3);
-  box-shadow: 0 12px 30px -10px rgba(245,158,11,0.2);
+  background: linear-gradient(135deg, rgba(245,158,11,0.1) 0%, rgba(20,26,41,0.4) 100%);
 }
 .set-card .set-prefix {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 28px;
+  font-size: 20px;
   color: #F59E0B;
   letter-spacing: 0.04em;
   line-height: 1;
-  margin-bottom: 6px;
+  flex-shrink: 0;
+  min-width: 42px;
+}
+.set-card .set-meta {
+  min-width: 0; flex: 1;
 }
 .set-card .set-name {
   font-size: 11px;
   color: #FAF7F2;
   font-weight: 600;
-  line-height: 1.3;
-  margin-bottom: 8px;
+  line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  margin-bottom: 2px;
 }
 .set-card .set-count {
-  font-size: 10px;
+  font-size: 9px;
   color: #8B92A8;
   font-family: monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.1em;
 }
-.set-card::before {
-  content: '';
-  position: absolute;
-  top: -20px; right: -20px;
-  width: 80px; height: 80px;
-  background: radial-gradient(circle, rgba(245,158,11,0.15) 0%, transparent 70%);
-  pointer-events: none;
+
+/* Empty-state for a category with no sets */
+.set-cat-empty {
+  text-align: center; padding: 40px 20px;
+  color: #8B92A8;
 }
+.set-cat-empty .title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px; letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.set-cat-empty .sub { font-size: 12px; }
 
 /* Active set indicator above grid */
 .active-set-banner {
@@ -1134,7 +1186,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v20</div>
+          <div class="subtitle">Card Database · v21</div>
         </div>
       </div>
       <div class="header-controls">
@@ -1221,6 +1273,14 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
       <div class="value" id="active-set-value">—</div>
     </div>
     <button class="clear-set" onclick="clearSet()">✕ Show all sets</button>
+  </div>
+
+  <!-- v21: Set browser category tabs (MAIN / PROMO / SPECIAL / DECK) -->
+  <div class="set-cat-tabs" id="set-cat-tabs" style="display:none">
+    <button class="set-cat-tab active" data-cat="MAIN">Main</button>
+    <button class="set-cat-tab" data-cat="PROMO">Promo</button>
+    <button class="set-cat-tab" data-cat="SPECIAL">Special</button>
+    <button class="set-cat-tab" data-cat="DECK">Deck</button>
   </div>
 
   <div class="set-grid" id="set-grid" style="display:none"></div>
@@ -2304,6 +2364,90 @@ const SET_NAMES = {
 };
 const SET_SORT_ORDER = ['OP', 'EB', 'PRB', 'ST', 'OTHER'];
 
+// ===== Set categorization (v21) =====
+// Each set prefix maps to a top-level category (MAIN/PROMO/SPECIAL/DECK) and
+// a sub-section label used for grouping inside the category. Anything not
+// explicitly listed below gets bucketed as PROMO/Promotional by default.
+// To recategorize a prefix (e.g., move "OTHER" splits or add new sets), add
+// it to SET_TAXONOMY. Sub-section names map to a stable display order via
+// SUBSECTION_ORDER.
+const SET_TAXONOMY = {
+  // MAIN
+  OP01: ['MAIN', 'One Piece'], OP02: ['MAIN', 'One Piece'],
+  OP03: ['MAIN', 'One Piece'], OP04: ['MAIN', 'One Piece'],
+  OP05: ['MAIN', 'One Piece'], OP06: ['MAIN', 'One Piece'],
+  OP07: ['MAIN', 'One Piece'], OP08: ['MAIN', 'One Piece'],
+  OP09: ['MAIN', 'One Piece'], OP10: ['MAIN', 'One Piece'],
+  OP11: ['MAIN', 'One Piece'], OP12: ['MAIN', 'One Piece'],
+  OP13: ['MAIN', 'One Piece'], OP14: ['MAIN', 'One Piece'],
+  OP15: ['MAIN', 'One Piece'], OP16: ['MAIN', 'One Piece'],
+  OP17: ['MAIN', 'One Piece'], OP18: ['MAIN', 'One Piece'],
+  EB01: ['MAIN', 'Extra Booster'], EB02: ['MAIN', 'Extra Booster'],
+  EB03: ['MAIN', 'Extra Booster'], EB04: ['MAIN', 'Extra Booster'],
+  EB05: ['MAIN', 'Extra Booster'],
+  PRB01: ['MAIN', 'Premium Booster'], PRB02: ['MAIN', 'Premium Booster'],
+  PRB03: ['MAIN', 'Premium Booster'],
+  // DECK
+  ST01: ['DECK', 'Starter Deck'], ST02: ['DECK', 'Starter Deck'],
+  ST03: ['DECK', 'Starter Deck'], ST04: ['DECK', 'Starter Deck'],
+  ST05: ['DECK', 'Starter Deck'], ST06: ['DECK', 'Starter Deck'],
+  ST07: ['DECK', 'Starter Deck'], ST08: ['DECK', 'Starter Deck'],
+  ST09: ['DECK', 'Starter Deck'], ST10: ['DECK', 'Starter Deck'],
+  ST11: ['DECK', 'Starter Deck'], ST12: ['DECK', 'Starter Deck'],
+  ST13: ['DECK', 'Starter Deck'], ST14: ['DECK', 'Starter Deck'],
+  ST15: ['DECK', 'Starter Deck'], ST16: ['DECK', 'Starter Deck'],
+  ST17: ['DECK', 'Starter Deck'], ST18: ['DECK', 'Starter Deck'],
+  ST19: ['DECK', 'Starter Deck'], ST20: ['DECK', 'Starter Deck'],
+  ST21: ['DECK', 'Starter Deck'], ST22: ['DECK', 'Starter Deck'],
+  ST23: ['DECK', 'Starter Deck'], ST24: ['DECK', 'Starter Deck'],
+  ST25: ['DECK', 'Starter Deck'], ST26: ['DECK', 'Starter Deck'],
+  ST27: ['DECK', 'Starter Deck'], ST28: ['DECK', 'Starter Deck'],
+  ST29: ['DECK', 'Starter Deck'], ST30: ['DECK', 'Starter Deck'],
+  // (SPECIAL is empty for now — to be split out of OTHER later)
+  // OTHER is bucketed by getSetCategory() default → PROMO
+};
+
+const CATEGORY_TABS = [
+  { id: 'MAIN',    label: 'Main' },
+  { id: 'PROMO',   label: 'Promo' },
+  { id: 'SPECIAL', label: 'Special' },
+  { id: 'DECK',    label: 'Deck' },
+];
+
+// Display order of sub-section headings within each category
+const SUBSECTION_ORDER = [
+  'One Piece', 'Extra Booster', 'Premium Booster',   // MAIN
+  'Promotional',                                      // PROMO (default bucket)
+  'Special Sets',                                     // SPECIAL placeholder
+  'Pre-Release', 'Starter Deck', 'Special',           // DECK
+];
+
+function getSetCategory(prefix) {
+  const entry = SET_TAXONOMY[prefix];
+  if (entry) return { category: entry[0], subsection: entry[1] };
+  // Default bucket: unknown prefixes go to Promo / Promotional
+  return { category: 'PROMO', subsection: 'Promotional' };
+}
+
+// Returns { category: { subsection: [prefix, ...] } } for the active sets.
+function groupedSetPrefixes() {
+  const groups = { MAIN: {}, PROMO: {}, SPECIAL: {}, DECK: {} };
+  for (const prefix of Object.keys(setIndex)) {
+    const { category, subsection } = getSetCategory(prefix);
+    if (!groups[category][subsection]) groups[category][subsection] = [];
+    groups[category][subsection].push(prefix);
+  }
+  // Sort prefixes inside each subsection (numeric-aware), and order subsections.
+  for (const cat of Object.keys(groups)) {
+    for (const sub of Object.keys(groups[cat])) {
+      groups[cat][sub].sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true })
+      );
+    }
+  }
+  return groups;
+}
+
 const setIndex = {};
 for (const c of cards) {
   const m = c.id.match(/^([A-Z]+\d+)-/);
@@ -2332,6 +2476,7 @@ function setView(view, skipHistory) {
   });
   // Hide all view-specific UI first
   document.getElementById('set-grid').style.display = 'none';
+  document.getElementById('set-cat-tabs').style.display = 'none';
   document.getElementById('collection-stats').style.display = 'none';
   document.getElementById('collection-toolbar').style.display = 'none';
   document.getElementById('collection-empty').style.display = 'none';
@@ -2341,7 +2486,8 @@ function setView(view, skipHistory) {
   document.getElementById('load-more-wrap').style.display = 'none';
 
   if (view === 'sets') {
-    document.getElementById('set-grid').style.display = 'grid';
+    document.getElementById('set-grid').style.display = 'block';
+    document.getElementById('set-cat-tabs').style.display = 'flex';
     document.getElementById('grid').style.display = 'none';
     activeSet = null;
     renderSetGrid();
@@ -2391,18 +2537,58 @@ function setSubTab(name) {
   }
 }
 
+// v21 set browser: 4 top-level category tabs, with grouped sub-sections.
+// activeSetCategory persists during the session only (default = MAIN).
+let activeSetCategory = 'MAIN';
+
+function setSetCategory(cat) {
+  if (!CATEGORY_TABS.some(t => t.id === cat)) return;
+  activeSetCategory = cat;
+  document.querySelectorAll('.set-cat-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.cat === cat);
+  });
+  renderSetGrid();
+}
+
 function renderSetGrid() {
   const grid = document.getElementById('set-grid');
-  const prefixes = sortedSetPrefixes();
-  grid.innerHTML = prefixes.map(prefix => {
-    const count = setIndex[prefix].length;
-    const name = SET_NAMES[prefix] || prefix;
-    return `<button class="set-card" data-prefix="${prefix}">
-      <div class="set-prefix">${prefix}</div>
-      <div class="set-name">${escapeHtml(name)}</div>
-      <div class="set-count">${count} cards</div>
-    </button>`;
+  const groups = groupedSetPrefixes();
+  const catGroups = groups[activeSetCategory] || {};
+  const subsections = Object.keys(catGroups).sort((a, b) => {
+    const ia = SUBSECTION_ORDER.indexOf(a);
+    const ib = SUBSECTION_ORDER.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  if (subsections.length === 0) {
+    grid.innerHTML = `
+      <div class="set-cat-empty">
+        <div class="title">No sets in this category</div>
+        <div class="sub">Check another tab.</div>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = subsections.map(sub => {
+    const prefixes = catGroups[sub];
+    const tiles = prefixes.map(prefix => {
+      const count = setIndex[prefix].length;
+      const name = SET_NAMES[prefix] || prefix;
+      return `<button class="set-card" data-prefix="${prefix}">
+        <div class="set-prefix">${prefix}</div>
+        <div class="set-meta">
+          <div class="set-name">${escapeHtml(name)}</div>
+          <div class="set-count">${count} cards</div>
+        </div>
+      </button>`;
+    }).join('');
+    return `
+      <div class="set-subsection-header">${escapeHtml(sub)}</div>
+      <div class="set-tiles">${tiles}</div>
+    `;
   }).join('');
+
   grid.querySelectorAll('.set-card').forEach(el => {
     el.addEventListener('click', () => selectSet(el.dataset.prefix));
   });
@@ -3022,6 +3208,11 @@ document.querySelectorAll('.view-tab').forEach(tab => {
 // Wire up sub-tabs (Collection / WTB / WTS, only visible on My Lists view)
 document.querySelectorAll('.list-subtab').forEach(tab => {
   tab.addEventListener('click', () => setSubTab(tab.dataset.sublist));
+});
+
+// Wire up set category tabs (Main / Promo / Special / Deck, only on Sets view)
+document.querySelectorAll('.set-cat-tab').forEach(tab => {
+  tab.addEventListener('click', () => setSetCategory(tab.dataset.cat));
 });
 
 // Wire up collection sort buttons
