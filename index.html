@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v22.3 -->
+<!-- build: v22.4 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -426,13 +426,26 @@ header {
 .search-wrap { flex: 1; position: relative; }
 .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #8B92A8; pointer-events: none; }
 .search-input {
-  width: 100%; padding: 10px 12px 10px 36px;
+  width: 100%; padding: 10px 36px 10px 36px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
   color: #FAF7F2; font-size: 14px; outline: none;
 }
 .search-input:focus { border-color: rgba(245,158,11,0.4); }
+.search-clear {
+  position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%);
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(245,158,11,0.18);
+  color: #F59E0B;
+  border: 1px solid rgba(245,158,11,0.35);
+  font-size: 11px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.search-clear:hover { background: rgba(245,158,11,0.28); }
 .filter-btn {
   padding: 0 14px; border-radius: 12px;
   background: rgba(255,255,255,0.04);
@@ -1393,7 +1406,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v22.3</div>
+          <div class="subtitle">Card Database · v22.4</div>
         </div>
       </div>
       <div class="header-controls">
@@ -1413,6 +1426,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
       <div class="search-wrap">
         <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="search-input" class="search-input" type="text" placeholder="Search by name or card ID (e.g. OP01-001)" autocomplete="off" />
+        <button class="search-clear" id="search-clear" aria-label="Clear search" style="display:none" onclick="clearFilters()">✕</button>
       </div>
       <button class="filter-btn" id="filter-toggle" onclick="toggleFilters()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
@@ -2954,6 +2968,7 @@ function setMktSubTab(name) {
   document.querySelectorAll('[data-mkt-sub]').forEach(t => {
     t.classList.toggle('active', t.dataset.mktSub === name);
   });
+  window._cp(`mkt-subtab: ${name} (listings=${mktData.listings.length} wants=${Object.keys(wants).length})`);
   renderMarketplaceListings();
 }
 
@@ -3664,6 +3679,17 @@ function clearFilters() {
   visibleLimit = PAGE_SIZE;
   document.getElementById('search-input').value = '';
   document.getElementById('clear-btn').style.display = 'none';
+  document.getElementById('search-clear').style.display = 'none';
+  // On Marketplace, just re-render the listings (no view switch)
+  if (currentView === 'marketplace') {
+    renderMarketplaceListings();
+    return;
+  }
+  // On collection, just re-render (don't switch away)
+  if (currentView === 'collection') {
+    renderCollectionView();
+    return;
+  }
   // Return to Sets unless a specific set is pinned
   if (currentView === 'cards' && !activeSet) {
     setView('sets', true);
@@ -3676,6 +3702,8 @@ let searchTimer;
 document.getElementById('search-input').addEventListener('input', (e) => {
   query = e.target.value;
   clearTimeout(searchTimer);
+  // Show the inline X as soon as there's text (don't wait for the debounce)
+  document.getElementById('search-clear').style.display = query ? 'flex' : 'none';
   searchTimer = setTimeout(() => {
     visibleLimit = PAGE_SIZE;
     const hasFilters = query || activeColors.length || activeTypes.length || activeRarities.length;
@@ -3985,14 +4013,21 @@ document.querySelectorAll('.lang-btn').forEach(btn => {
   btn.addEventListener('click', () => setLang(btn.dataset.lang));
 });
 
-// Wire up view tabs (All Cards / Sets / Collection)
-// Clicking a tab clears any active set filter — user expects All to show all,
-// not the previously-selected set. selectSet() doesn't go through this path,
-// so it can still set activeSet directly when picking a set card.
+// Wire up view tabs. Clicking a tab clears any active set filter AND clears
+// the search bar — user expects each tab to start fresh.
 document.querySelectorAll('.view-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     activeSet = null;
     visibleLimit = PAGE_SIZE;
+    // Clear search/filters on tab click (consistent UX across all tabs)
+    const inp = document.getElementById('search-input');
+    if (inp && inp.value) {
+      inp.value = '';
+      query = '';
+      activeColors = []; activeTypes = []; activeRarities = [];
+      document.getElementById('clear-btn').style.display = 'none';
+      document.getElementById('search-clear').style.display = 'none';
+    }
     setView(tab.dataset.view);
   });
 });
