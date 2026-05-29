@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v21 -->
+<!-- build: v22 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -1044,6 +1044,180 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
 }
 .lists-signin-btn:hover { background: rgba(245,158,11,0.25); }
 
+/* ===== Marketplace (v22) ===== */
+.marketplace-empty {
+  text-align: center; padding: 60px 24px;
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: 14px;
+}
+.marketplace-empty .title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px; letter-spacing: 0.14em;
+  margin-bottom: 8px; color: #FAF7F2;
+}
+.marketplace-empty .sub {
+  font-size: 13px; color: #8B92A8;
+}
+
+.mkt-filters {
+  margin-bottom: 14px;
+}
+.mkt-filter-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em;
+  color: #8B92A8; margin-bottom: 6px;
+}
+.mkt-chips {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.mkt-chip {
+  padding: 6px 12px; border-radius: 999px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #8B92A8;
+  font-size: 11px; font-weight: 600;
+  transition: all 0.15s;
+}
+.mkt-chip.active {
+  background: rgba(245,158,11,0.15);
+  border-color: rgba(245,158,11,0.4);
+  color: #F59E0B;
+}
+.mkt-chip:not(.active):hover { color: #FAF7F2; }
+
+/* One listing row */
+.mkt-listing {
+  display: flex; gap: 10px;
+  padding: 10px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+.mkt-card-mini {
+  width: 56px;
+  aspect-ratio: 0.7;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #141A29;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.mkt-card-mini img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.mkt-fallback {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 11px; color: #8B92A8;
+  text-align: center; padding: 4px;
+}
+.mkt-info { flex: 1; min-width: 0; }
+.mkt-card-name {
+  font-size: 13px; font-weight: 700; color: #FAF7F2;
+  line-height: 1.2; margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mkt-card-id {
+  font-family: monospace; font-size: 10px; color: #8B92A8; font-weight: 400;
+}
+.mkt-row-meta {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.mkt-qty {
+  font-size: 11px; font-weight: 700; color: #F59E0B;
+}
+.mkt-lang {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 1px 5px; border-radius: 3px;
+  background: rgba(255,255,255,0.06); color: #8B92A8;
+}
+.mkt-flag {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
+  padding: 1px 6px; border-radius: 999px;
+}
+.mkt-flag.wtb { background: rgba(59,130,246,0.18); color: #60A5FA; }
+.mkt-flag.coll { background: rgba(34,197,94,0.18); color: #4ADE80; }
+
+.mkt-price {
+  font-size: 10px; font-family: monospace; color: #8B92A8;
+  margin-bottom: 4px;
+}
+
+.mkt-seller {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  font-size: 11px;
+}
+.mkt-seller-name { color: #FAF7F2; font-weight: 600; }
+.mkt-seller-loc { color: #8B92A8; }
+.mkt-tier-badge {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
+  padding: 1px 6px; border-radius: 4px;
+}
+.mkt-tier-badge.region { background: rgba(34,197,94,0.18); color: #4ADE80; }
+.mkt-tier-badge.country { background: rgba(245,158,11,0.15); color: #F59E0B; }
+.mkt-tier-badge.far { background: rgba(139,146,168,0.15); color: #8B92A8; }
+
+.mkt-actions {
+  display: flex; align-items: center; flex-shrink: 0;
+}
+.mkt-contact-btn {
+  padding: 8px 12px; border-radius: 8px;
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.4);
+  color: #4ADE80;
+  font-size: 12px; font-weight: 700;
+}
+.mkt-contact-btn:hover { background: rgba(34,197,94,0.25); }
+.mkt-no-contact {
+  font-size: 10px; color: #8B92A8; padding: 6px 0;
+  white-space: nowrap;
+}
+
+.mkt-empty-state {
+  text-align: center; padding: 40px 20px;
+  color: #8B92A8;
+}
+.mkt-empty-state .title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px; letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.mkt-empty-state .sub { font-size: 12px; }
+
+/* Card detail modal — marketplace cross-link panel */
+.modal-marketplace {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(245,158,11,0.05);
+  border: 1px solid rgba(245,158,11,0.18);
+  border-radius: 10px;
+}
+.modal-mkt-header {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.18em;
+  color: #F59E0B; margin-bottom: 8px;
+}
+.modal-mkt-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0;
+}
+.modal-mkt-icon { font-size: 14px; line-height: 1; }
+.modal-mkt-text { font-size: 12px; color: #FAF7F2; flex: 1; }
+.modal-mkt-text b { color: #F59E0B; }
+.modal-mkt-btn {
+  padding: 4px 10px; border-radius: 6px;
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: #F59E0B;
+  font-size: 10px; font-weight: 700;
+}
+.modal-mkt-btn:hover { background: rgba(245,158,11,0.25); }
+
+
 
 /* Toast notification */
 .toast {
@@ -1186,7 +1360,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v21</div>
+          <div class="subtitle">Card Database · v22</div>
         </div>
       </div>
       <div class="header-controls">
@@ -1239,13 +1413,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
 
 <main>
   <div class="view-tabs" id="view-tabs">
-    <button class="view-tab active" data-view="all">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      All
-    </button>
-    <button class="view-tab" data-view="sets">
+    <button class="view-tab active" data-view="sets">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.08V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h6"/><polyline points="14 3 14 8 19 8"/><circle cx="18" cy="18" r="3"/><line x1="18" y1="14" x2="18" y2="22"/></svg>
       Sets
+    </button>
+    <button class="view-tab" data-view="marketplace">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11H3l2-7h14l2 7Z"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>
+      Marketplace
     </button>
     <button class="view-tab" data-view="collection">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
@@ -1284,6 +1458,40 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
   </div>
 
   <div class="set-grid" id="set-grid" style="display:none"></div>
+
+  <!-- v22: Marketplace view -->
+  <div id="marketplace-wrap" style="display:none">
+    <div class="marketplace-empty" id="marketplace-empty" style="display:none">
+      <div class="title" id="mkt-empty-title">SIGN IN TO BROWSE THE MARKETPLACE</div>
+      <div class="sub" id="mkt-empty-sub">See cards being sold by other collectors near you.</div>
+      <button class="lists-signin-btn" id="mkt-signin-btn" style="margin-top:14px">Sign in</button>
+    </div>
+
+    <div class="marketplace-content" id="marketplace-content" style="display:none">
+      <!-- Browse / Matches sub-tabs -->
+      <div class="list-subtabs" id="mkt-subtabs">
+        <button class="list-subtab active" data-mkt-sub="browse">
+          Browse Listings <span class="sublist-count" id="mkt-count-browse">0</span>
+        </button>
+        <button class="list-subtab" data-mkt-sub="matches">
+          My Matches <span class="sublist-count" id="mkt-count-matches">0</span>
+        </button>
+      </div>
+
+      <!-- Location filter chips -->
+      <div class="mkt-filters" id="mkt-filters">
+        <div class="mkt-filter-label">Location</div>
+        <div class="mkt-chips">
+          <button class="mkt-chip active" data-mkt-loc="country">Same country</button>
+          <button class="mkt-chip" data-mkt-loc="region">Same region only</button>
+          <button class="mkt-chip" data-mkt-loc="all">All locations</button>
+        </div>
+      </div>
+
+      <!-- Listings -->
+      <div id="mkt-listings"></div>
+    </div>
+  </div>
 
   <!-- Collection view extras (hidden unless on Collection tab) -->
   <div id="collection-stats" class="collection-stats" style="display:none">
@@ -1966,6 +2174,7 @@ async function onAuthChange(event, session) {
     collection = {};
     wants = {};
     listings = {};
+    mktData = { listings: [], wantsByCard: {}, loadedAt: 0 };
     saveCollection();
     closeAuthModal();
     // Reset modal content so reopening shows fresh sign-in panel
@@ -1973,6 +2182,7 @@ async function onAuthChange(event, session) {
     updateAccountButton();
     renderGrid();
     if (currentView === 'collection') renderCollectionView();
+    if (currentView === 'marketplace') renderMarketplace();
     showToast('Signed out');
     return;
   }
@@ -2027,6 +2237,10 @@ async function onAuthChange(event, session) {
   updateAccountButton();
   renderGrid();
   if (currentView === 'collection') renderCollectionView();
+  if (currentView === 'marketplace') renderMarketplace();
+  // Preload marketplace data so card detail cross-links work without
+  // visiting the Marketplace tab first. Fire-and-forget.
+  loadMarketplaceData().catch(() => {});
 
   // INITIAL_SESSION event = page reload while already signed in. Don't show
   // any modal in that case — just silently restore state.
@@ -2126,6 +2340,16 @@ function showAccountPanel() {
         </div>
         <button class="loc-edit-btn" id="do-edit-location">${locationText ? 'Edit' : 'Set'}</button>
       </div>
+      <div class="location-row">
+        <div class="pin-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="loc-info">
+          <div class="loc-label">Contact for marketplace</div>
+          <div class="loc-value ${currentProfile?.contact_method ? '' : 'empty'}">${escapeHtml(currentProfile?.contact_method || 'Not set — needed to receive WTB/WTS contacts')}</div>
+        </div>
+        <button class="loc-edit-btn" id="do-edit-contact">${currentProfile?.contact_method ? 'Edit' : 'Set'}</button>
+      </div>
       <div class="sync-status">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         ${totalCards} card${totalCards === 1 ? '' : 's'} synced across your devices
@@ -2138,6 +2362,48 @@ function showAccountPanel() {
   document.getElementById('do-sign-out').addEventListener('click', signOut);
   document.getElementById('auth-cancel').addEventListener('click', closeAuthModal);
   document.getElementById('do-edit-location').addEventListener('click', () => showLocationEditor(false));
+  document.getElementById('do-edit-contact').addEventListener('click', showContactEditor);
+}
+
+// Contact-method editor: opens a tiny inline panel that accepts a free-text
+// string (e.g., "WhatsApp: +60123456789" or "Telegram: @username"). Free-form
+// because users in Penang may prefer WhatsApp, Telegram, Discord, or other.
+function showContactEditor() {
+  const current = currentProfile?.contact_method || '';
+  const html = `
+    <div class="location-editor">
+      <h3>Contact method</h3>
+      <p class="loc-explain">How should other buyers and sellers reach you?<br>
+      e.g. <em>WhatsApp +60 12-345 6789</em> or <em>Telegram @yourname</em></p>
+      <input type="text" id="contact-input" placeholder="WhatsApp +60..." value="${escapeHtml(current)}" maxlength="120" />
+      <div class="location-actions">
+        <button class="loc-save-btn" id="contact-save">Save</button>
+        ${current ? '<button class="loc-clear-btn" id="contact-clear">Remove</button>' : ''}
+        <button class="loc-cancel-btn" id="contact-cancel">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('auth-modal-content').innerHTML = html;
+  document.getElementById('contact-input').focus();
+  document.getElementById('contact-save').addEventListener('click', async () => {
+    const val = document.getElementById('contact-input').value.trim();
+    if (val.length > 120) {
+      showToast('Contact must be 120 characters or less');
+      return;
+    }
+    const ok = await saveProfile({ contact_method: val || null });
+    if (ok) {
+      showToast(val ? 'Contact saved' : 'Contact removed');
+      showAccountPanel();
+    }
+  });
+  if (current) {
+    document.getElementById('contact-clear').addEventListener('click', async () => {
+      const ok = await saveProfile({ contact_method: null });
+      if (ok) { showToast('Contact removed'); showAccountPanel(); }
+    });
+  }
+  document.getElementById('contact-cancel').addEventListener('click', showAccountPanel);
 }
 
 // Build the country dropdown HTML with SEA group at top
@@ -2465,22 +2731,29 @@ function sortedSetPrefixes() {
   });
 }
 
-let currentView = 'all';     // 'all' | 'sets'
-let activeSet = null;        // when set, restricts the All Cards grid to that set
+let currentView = 'sets';   // 'sets' | 'marketplace' | 'collection' | 'cards' (internal)
+let activeSet = null;       // when set, restricts the cards grid to that set
 
 function setView(view, skipHistory) {
   const wasView = currentView;
   currentView = view;
+  // Tab highlighting: only highlight tabs for the 3 user-facing tabs.
+  // For internal 'cards' view, keep Sets highlighted (since search/filter
+  // happens from Sets view).
   document.querySelectorAll('.view-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.view === view);
+    const tabView = t.dataset.view;
+    const isActive = tabView === view || (view === 'cards' && tabView === 'sets');
+    t.classList.toggle('active', isActive);
   });
   // Hide all view-specific UI first
   document.getElementById('set-grid').style.display = 'none';
   document.getElementById('set-cat-tabs').style.display = 'none';
+  document.getElementById('grid').style.display = 'none';
   document.getElementById('collection-stats').style.display = 'none';
   document.getElementById('collection-toolbar').style.display = 'none';
   document.getElementById('collection-empty').style.display = 'none';
   document.getElementById('list-subtabs').style.display = 'none';
+  document.getElementById('marketplace-wrap').style.display = 'none';
   document.getElementById('active-set-banner').classList.remove('show');
   document.getElementById('empty').style.display = 'none';
   document.getElementById('load-more-wrap').style.display = 'none';
@@ -2488,11 +2761,16 @@ function setView(view, skipHistory) {
   if (view === 'sets') {
     document.getElementById('set-grid').style.display = 'block';
     document.getElementById('set-cat-tabs').style.display = 'flex';
-    document.getElementById('grid').style.display = 'none';
     activeSet = null;
     renderSetGrid();
     if (!skipHistory && wasView !== 'sets') {
       history.pushState({ type: 'view-sets' }, '');
+    }
+  } else if (view === 'marketplace') {
+    document.getElementById('marketplace-wrap').style.display = 'block';
+    renderMarketplace();
+    if (!skipHistory && wasView !== 'marketplace') {
+      history.pushState({ type: 'view-marketplace' }, '');
     }
   } else if (view === 'collection') {
     activeSet = null;
@@ -2505,7 +2783,7 @@ function setView(view, skipHistory) {
       history.pushState({ type: 'view-collection' }, '');
     }
   } else {
-    // 'all' view
+    // 'cards' internal view — filtered/searched results
     document.getElementById('grid').style.display = 'grid';
     renderGrid();
   }
@@ -2535,6 +2813,354 @@ function setSubTab(name) {
     visibleLimit = PAGE_SIZE;
     renderCollectionView();
   }
+}
+
+// ===== MARKETPLACE (Phase 6 / v22) =====
+// State: which sub-tab is active (browse | matches), which location filter,
+// and a cache of fetched data (refreshed each time the view opens).
+let mktSubTab = 'browse';        // 'browse' | 'matches'
+let mktLocationFilter = 'country'; // 'country' | 'region' | 'all'
+let mktData = {
+  listings: [],          // [{ card_id, qty, lang, seller: {user_id, display_name, country_code, region, contact_method} }]
+  wantsByCard: {},       // card_id -> [{ user_id, display_name, ... }]   for matches view
+  loadedAt: 0,           // timestamp
+};
+
+function setMktSubTab(name) {
+  if (!['browse', 'matches'].includes(name)) return;
+  mktSubTab = name;
+  document.querySelectorAll('[data-mkt-sub]').forEach(t => {
+    t.classList.toggle('active', t.dataset.mktSub === name);
+  });
+  renderMarketplaceListings();
+}
+
+function setMktLocationFilter(loc) {
+  if (!['country', 'region', 'all'].includes(loc)) return;
+  mktLocationFilter = loc;
+  document.querySelectorAll('[data-mkt-loc]').forEach(t => {
+    t.classList.toggle('active', t.dataset.mktLoc === loc);
+  });
+  renderMarketplaceListings();
+}
+
+// Top-level marketplace renderer — decides whether to show empty state
+// (anonymous user) or content area, kicks off data load if signed in.
+function renderMarketplace() {
+  const emptyEl = document.getElementById('marketplace-empty');
+  const contentEl = document.getElementById('marketplace-content');
+
+  if (!currentUser) {
+    emptyEl.style.display = 'block';
+    contentEl.style.display = 'none';
+    document.getElementById('mkt-empty-title').textContent = 'SIGN IN TO BROWSE THE MARKETPLACE';
+    document.getElementById('mkt-empty-sub').textContent = 'See cards being sold by other collectors near you.';
+    // Wire sign-in button (idempotent re-binding is fine here)
+    const btn = document.getElementById('mkt-signin-btn');
+    btn.onclick = () => openAuthModal();
+    return;
+  }
+
+  // Signed in. If location/contact not set, gently nudge but still show data.
+  emptyEl.style.display = 'none';
+  contentEl.style.display = 'block';
+  loadMarketplaceData().then(() => renderMarketplaceListings());
+}
+
+// Fetch others' listings + wants from Supabase, joined to their profile.
+// We do two queries (listings, wants) and one for profiles, then join in JS.
+// Cache for 30 seconds within a session to avoid spamming Supabase on tab flips.
+async function loadMarketplaceData(force = false) {
+  if (!sbClient || !currentUser) return;
+  const now = Date.now();
+  if (!force && mktData.loadedAt && (now - mktData.loadedAt) < 30_000) return;
+
+  try {
+    // 1. All listings except mine (those are in My Lists)
+    const { data: listings, error: e1 } = await sbClient
+      .from('listings')
+      .select('card_id, qty, lang, user_id, updated_at')
+      .neq('user_id', currentUser.id);
+    if (e1) throw e1;
+
+    // 2. All wants except mine
+    const { data: wants, error: e2 } = await sbClient
+      .from('wants')
+      .select('card_id, qty, lang, user_id, updated_at')
+      .neq('user_id', currentUser.id);
+    if (e2) throw e2;
+
+    // 3. Profiles for all involved user_ids
+    const userIds = [...new Set([
+      ...(listings || []).map(r => r.user_id),
+      ...(wants || []).map(r => r.user_id),
+    ])];
+    let profilesByUser = {};
+    if (userIds.length) {
+      const { data: profs, error: e3 } = await sbClient
+        .from('profiles')
+        .select('user_id, display_name, country_code, region, contact_method')
+        .in('user_id', userIds);
+      if (e3) throw e3;
+      for (const p of (profs || [])) profilesByUser[p.user_id] = p;
+    }
+
+    // Decorate listings with seller profile
+    mktData.listings = (listings || []).map(l => ({
+      ...l,
+      seller: profilesByUser[l.user_id] || { user_id: l.user_id, display_name: 'Anonymous' },
+    }));
+
+    // Build wants-by-card map for "My Matches" view
+    mktData.wantsByCard = {};
+    for (const w of (wants || [])) {
+      if (!mktData.wantsByCard[w.card_id]) mktData.wantsByCard[w.card_id] = [];
+      mktData.wantsByCard[w.card_id].push({
+        ...w,
+        buyer: profilesByUser[w.user_id] || { user_id: w.user_id, display_name: 'Anonymous' },
+      });
+    }
+    mktData.loadedAt = now;
+  } catch (e) {
+    console.error('loadMarketplaceData error:', e);
+    showToast('Could not load marketplace: ' + (e.message || 'unknown'));
+  }
+}
+
+// Match a listing/want against the user's location filter.
+// Returns { passes: bool, tier: 'region' | 'country' | 'far' } so the UI
+// can badge same-region COD-possible matches.
+function classifyLocation(otherProfile) {
+  const my = currentProfile || {};
+  const sameCountry = my.country_code && otherProfile.country_code === my.country_code;
+  const sameRegion = sameCountry && my.region && otherProfile.region === my.region;
+  const tier = sameRegion ? 'region' : sameCountry ? 'country' : 'far';
+  let passes;
+  if (mktLocationFilter === 'all') passes = true;
+  else if (mktLocationFilter === 'country') passes = !!sameCountry;
+  else if (mktLocationFilter === 'region') passes = !!sameRegion;
+  return { passes, tier };
+}
+
+// Render the listings area based on active sub-tab + location filter.
+function renderMarketplaceListings() {
+  const wrap = document.getElementById('mkt-listings');
+  const myWantsSet = new Set(Object.keys(wants));   // user's WTB card_ids
+  const myCollectionSet = new Set(Object.keys(collection));
+
+  // Source rows depending on sub-tab
+  let rows;
+  if (mktSubTab === 'matches') {
+    // Show OTHER PEOPLE'S LISTINGS for cards on MY WTB list
+    rows = mktData.listings.filter(l => myWantsSet.has(l.card_id));
+  } else {
+    rows = mktData.listings;
+  }
+
+  // Apply location filter and decorate with tier
+  const decorated = rows
+    .map(l => ({ ...l, _loc: classifyLocation(l.seller) }))
+    .filter(l => l._loc.passes);
+
+  // Sort: same-region first, then same-country, then far. Within tier,
+  // newest first.
+  const tierRank = { region: 0, country: 1, far: 2 };
+  decorated.sort((a, b) => {
+    const t = tierRank[a._loc.tier] - tierRank[b._loc.tier];
+    if (t !== 0) return t;
+    return (b.updated_at || '').localeCompare(a.updated_at || '');
+  });
+
+  // Count badges
+  const browseCount = mktData.listings
+    .map(l => classifyLocation(l.seller))
+    .filter(c => c.passes).length;
+  const matchesCount = mktData.listings
+    .filter(l => myWantsSet.has(l.card_id))
+    .map(l => classifyLocation(l.seller))
+    .filter(c => c.passes).length;
+  document.getElementById('mkt-count-browse').textContent = browseCount;
+  document.getElementById('mkt-count-matches').textContent = matchesCount;
+
+  // Apply search query too (so search bar works on Marketplace)
+  let filtered = decorated;
+  const q = query.trim().toLowerCase();
+  if (q) {
+    filtered = filtered.filter(l => {
+      const c = cardById[l.card_id];
+      if (!c) return l.card_id.toLowerCase().includes(q);
+      return c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
+    });
+  }
+
+  if (!filtered.length) {
+    let msg;
+    const noLocation = !currentProfile?.country_code;
+    if (mktSubTab === 'matches') {
+      msg = noLocation
+        ? 'Set your location in the account panel to see matches near you. Or change the location filter to "All".'
+        : 'No matches yet. Add cards to your WTB list — they\'ll appear here when others list them.';
+    } else if (noLocation && mktLocationFilter !== 'all') {
+      msg = 'Set your location in the account panel to see nearby listings, or change the location filter to "All".';
+    } else {
+      msg = 'No listings match your filters. Try widening the location filter.';
+    }
+    wrap.innerHTML = `<div class="mkt-empty-state"><div class="title">${mktSubTab === 'matches' ? 'NO MATCHES' : 'NO LISTINGS'}</div><div class="sub">${msg}</div></div>`;
+    return;
+  }
+
+  wrap.innerHTML = filtered.map(l => renderListingCard(l)).join('');
+
+  // Wire contact buttons
+  wrap.querySelectorAll('.mkt-contact-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const contact = btn.dataset.contact || '';
+      if (!contact) return;
+      // Try to detect a WhatsApp / Telegram link, otherwise just copy.
+      const url = contactToUrl(contact);
+      if (url) {
+        window.open(url, '_blank', 'noopener');
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(contact).then(() => showToast('Contact copied: ' + contact));
+      }
+    });
+  });
+
+  // Wire card tile clicks → open card detail
+  wrap.querySelectorAll('[data-card-id]').forEach(el => {
+    el.addEventListener('click', () => {
+      const cid = el.dataset.cardId;
+      const card = cardById[cid];
+      if (!card) return;
+      window._filteredCards = [card];
+      openModal(0);
+    });
+  });
+}
+
+// One listing row in the marketplace
+function renderListingCard(listing) {
+  const card = cardById[listing.card_id];
+  const seller = listing.seller || {};
+  const tier = listing._loc.tier;
+  const tierBadge = tier === 'region'
+    ? '<span class="mkt-tier-badge region">COD possible</span>'
+    : tier === 'country'
+      ? '<span class="mkt-tier-badge country">Same country</span>'
+      : '<span class="mkt-tier-badge far">International</span>';
+  const locText = formatLocation(seller) || 'Location not set';
+  const inCollection = !!collection[listing.card_id];
+  const inMyWants = !!wants[listing.card_id];
+  const cardImg = card ? proxyImage(card._rawImage, 120) : '';
+  const cardName = card ? card.name : listing.card_id;
+  const price = window._prices?.[listing.card_id];
+  const priceLine = price?.active_median != null
+    ? `<div class="mkt-price">eBay active ≈ $${price.active_median.toFixed(2)}</div>`
+    : '';
+
+  // Contact button — only show if seller has set a contact method
+  const contactBtn = seller.contact_method
+    ? `<button class="mkt-contact-btn" data-contact="${escapeHtml(seller.contact_method)}">Contact</button>`
+    : '<span class="mkt-no-contact">No contact set</span>';
+
+  return `
+    <div class="mkt-listing">
+      <div class="mkt-card-mini" data-card-id="${listing.card_id}">
+        ${cardImg ? `<img src="${cardImg}" alt="" />` : `<div class="mkt-fallback">${listing.card_id}</div>`}
+      </div>
+      <div class="mkt-info">
+        <div class="mkt-card-name">${escapeHtml(cardName)} <span class="mkt-card-id">${listing.card_id}</span></div>
+        <div class="mkt-row-meta">
+          <span class="mkt-qty">×${listing.qty}</span>
+          <span class="mkt-lang">${(listing.lang || 'en').toUpperCase()}</span>
+          ${inMyWants ? '<span class="mkt-flag wtb">on your WTB</span>' : ''}
+          ${inCollection ? '<span class="mkt-flag coll">in your collection</span>' : ''}
+        </div>
+        ${priceLine}
+        <div class="mkt-seller">
+          <span class="mkt-seller-name">${escapeHtml(seller.display_name || 'Anonymous')}</span>
+          <span class="mkt-seller-loc">${escapeHtml(locText)}</span>
+          ${tierBadge}
+        </div>
+      </div>
+      <div class="mkt-actions">${contactBtn}</div>
+    </div>
+  `;
+}
+
+// Heuristics to turn a contact string into a deep-link if possible.
+function contactToUrl(contact) {
+  const c = (contact || '').trim();
+  // Phone-like → WhatsApp
+  const phoneMatch = c.match(/(\+?\d[\d \-]{6,})/);
+  if (/whats?app/i.test(c) && phoneMatch) {
+    const digits = phoneMatch[1].replace(/\D+/g, '');
+    return `https://wa.me/${digits}`;
+  }
+  // Telegram handle
+  const tg = c.match(/telegram[^@]*@?([a-z0-9_]{4,})/i);
+  if (tg) return `https://t.me/${tg[1]}`;
+  // Discord — no deep-link, fall through to copy
+  // Plain WhatsApp number without keyword
+  if (phoneMatch && !/discord/i.test(c)) {
+    const digits = phoneMatch[1].replace(/\D+/g, '');
+    if (digits.length >= 8) return `https://wa.me/${digits}`;
+  }
+  return null;
+}
+
+// Card detail modal: cross-link to marketplace.
+// Shows up to 3 sellers of this card (filtered by current location chip),
+// plus a count of WTB demand. Tappable to open Marketplace pre-filtered.
+function renderModalMarketplace(card) {
+  if (!currentUser) return '';  // No marketplace info for anonymous users
+
+  const sellers = (mktData.listings || [])
+    .filter(l => l.card_id === card.id)
+    .map(l => ({ ...l, _loc: classifyLocation(l.seller) }))
+    .filter(l => l._loc.passes);
+  const wantersList = (mktData.wantsByCard[card.id] || [])
+    .map(w => ({ ...w, _loc: classifyLocation(w.buyer) }))
+    .filter(w => w._loc.passes);
+
+  if (!sellers.length && !wantersList.length) return '';
+
+  const sellerSummary = sellers.length
+    ? `<div class="modal-mkt-row"><span class="modal-mkt-icon" style="color:#F59E0B">●</span>
+         <span class="modal-mkt-text"><b>${sellers.length}</b> ${sellers.length === 1 ? 'person' : 'people'} selling this card</span>
+         <button class="modal-mkt-btn" data-mkt-jump="browse" data-card-id="${card.id}">View</button>
+       </div>`
+    : '';
+  const wantersSummary = wantersList.length
+    ? `<div class="modal-mkt-row"><span class="modal-mkt-icon" style="color:#60A5FA">●</span>
+         <span class="modal-mkt-text"><b>${wantersList.length}</b> ${wantersList.length === 1 ? 'person wants' : 'people want'} this card</span>
+       </div>`
+    : '';
+
+  return `<div class="modal-marketplace">
+    <div class="modal-mkt-header">Marketplace</div>
+    ${sellerSummary}${wantersSummary}
+  </div>`;
+}
+
+function wireModalMarketplace(card) {
+  const wrap = document.getElementById('modal-marketplace-wrap');
+  if (!wrap) return;
+  wrap.querySelectorAll('[data-mkt-jump]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cid = btn.dataset.cardId;
+      // Close modal, switch to Marketplace, pre-fill search with card id
+      document.getElementById('modal').classList.remove('open');
+      query = cid;
+      document.getElementById('search-input').value = cid;
+      mktSubTab = 'browse';
+      document.querySelectorAll('[data-mkt-sub]').forEach(t => {
+        t.classList.toggle('active', t.dataset.mktSub === 'browse');
+      });
+      setView('marketplace');
+    });
+  });
 }
 
 // v21 set browser: 4 top-level category tabs, with grouped sub-sections.
@@ -2700,7 +3326,7 @@ function selectSet(prefix) {
 function _selectSetInternal(prefix) {
   activeSet = prefix;
   visibleLimit = PAGE_SIZE;
-  setView('all', true /* skipHistory */);
+  setView('cards', true /* skipHistory */);
   const banner = document.getElementById('active-set-banner');
   banner.classList.add('show');
   document.getElementById('active-set-value').textContent =
@@ -2711,7 +3337,8 @@ function clearSet() {
   activeSet = null;
   document.getElementById('active-set-banner').classList.remove('show');
   visibleLimit = PAGE_SIZE;
-  renderGrid();
+  // Return to the Sets browser
+  setView('sets', true);
   // Pop the set history entry if it's there
   if (history.state?.type === 'set') {
     history.back();
@@ -2894,7 +3521,13 @@ function clearFilters() {
   query = ''; activeColors = []; activeTypes = []; activeRarities = [];
   visibleLimit = PAGE_SIZE;
   document.getElementById('search-input').value = '';
-  render();
+  document.getElementById('clear-btn').style.display = 'none';
+  // Return to Sets unless a specific set is pinned
+  if (currentView === 'cards' && !activeSet) {
+    setView('sets', true);
+  } else {
+    render();
+  }
 }
 
 let searchTimer;
@@ -2903,9 +3536,22 @@ document.getElementById('search-input').addEventListener('input', (e) => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     visibleLimit = PAGE_SIZE;
-    renderGrid();
     const hasFilters = query || activeColors.length || activeTypes.length || activeRarities.length;
     document.getElementById('clear-btn').style.display = hasFilters ? 'inline-flex' : 'none';
+    // Marketplace: search filters the listings inline, no view switch
+    if (currentView === 'marketplace') {
+      renderMarketplaceListings();
+      return;
+    }
+    // If user types from Sets view, switch to cards view to show results
+    if (hasFilters && currentView !== 'cards' && currentView !== 'collection') {
+      setView('cards', true);
+    } else if (!hasFilters && currentView === 'cards' && !activeSet) {
+      // User cleared search AND no set is active → return to Sets browser
+      setView('sets', true);
+    } else {
+      renderGrid();
+    }
   }, 150);
 });
 
@@ -2940,10 +3586,12 @@ function openModal(idx) {
     <div class="info-row"><span class="info-lbl">Set</span><span class="info-val">${escapeHtml(card.set || '—')}</span></div>
     ${card.ability ? `<div class="ability-box"><div class="ability-lbl" style="color:${accent}">Ability</div><div class="ability-text">${card.ability}</div></div>` : ''}
     <div id="collection-controls-wrap">${renderCollectionControls(card)}</div>
+    <div id="modal-marketplace-wrap">${renderModalMarketplace(card)}</div>
     ${renderPrices(card)}
   `;
   document.getElementById('modal').classList.add('open');
   wireCollectionControls(card);
+  wireModalMarketplace(card);
 
   // === Detail-load fix: thumbnail showed instantly above.
   // Now silently preload the high-res and swap when ready.
@@ -3168,13 +3816,12 @@ window.addEventListener('popstate', () => {
     activeSet = null;
     document.getElementById('active-set-banner').classList.remove('show');
     visibleLimit = PAGE_SIZE;
-    // Return to the Sets browser if that's where we came from, otherwise All
     setView('sets', true);
     return;
   }
-  // If we're on the Sets or Collection tab, go back to All
-  if (currentView === 'sets' || currentView === 'collection') {
-    setView('all', true);
+  // If we're on Marketplace/Collection/cards, back goes to Sets
+  if (currentView === 'marketplace' || currentView === 'collection' || currentView === 'cards') {
+    setView('sets', true);
     return;
   }
   // If filter panel is open, close it
@@ -3213,6 +3860,14 @@ document.querySelectorAll('.list-subtab').forEach(tab => {
 // Wire up set category tabs (Main / Promo / Special / Deck, only on Sets view)
 document.querySelectorAll('.set-cat-tab').forEach(tab => {
   tab.addEventListener('click', () => setSetCategory(tab.dataset.cat));
+});
+
+// Wire up marketplace sub-tabs and location filter chips (v22)
+document.querySelectorAll('[data-mkt-sub]').forEach(t => {
+  t.addEventListener('click', () => setMktSubTab(t.dataset.mktSub));
+});
+document.querySelectorAll('[data-mkt-loc]').forEach(t => {
+  t.addEventListener('click', () => setMktLocationFilter(t.dataset.mktLoc));
 });
 
 // Wire up collection sort buttons
@@ -3288,7 +3943,8 @@ if (new URLSearchParams(window.location.search).get('preview') === 'prices') {
 // Visible error reporter — surfaces any uncaught error so we can debug
 window._cp('about-to-render');
 try {
-  render();
+  renderPills();
+  setView('sets', true);  // Sets is the default landing view (v22)
   window._cp('render-done: ' + cards.length + ' cards');
 } catch (e) {
   window._cp('render-FAILED: ' + e.message);
