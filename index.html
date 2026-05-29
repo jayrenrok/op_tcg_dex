@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v22.2 -->
+<!-- build: v22.3 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -257,6 +257,27 @@ header {
   font-size: 12px; font-weight: 600;
 }
 .sync-now-btn:hover { background: rgba(245,158,11,0.18); }
+
+/* List loading state (during cloud sync) */
+.list-loading-state {
+  text-align: center; padding: 60px 20px;
+  color: #8B92A8;
+}
+.list-loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid rgba(245,158,11,0.2);
+  border-top-color: #F59E0B;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  animation: spin 0.8s linear infinite;
+}
+.list-loading-text {
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 /* ===== Phase 5: Location UI ===== */
 .location-row {
@@ -1372,7 +1393,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v22.2</div>
+          <div class="subtitle">Card Database · v22.3</div>
         </div>
       </div>
       <div class="header-controls">
@@ -1741,6 +1762,10 @@ let collection = loadCollection();
 let wants = {};      // WTB: cloud-only, populated on sign-in
 let listings = {};   // WTS: cloud-only, populated on sign-in
 
+// v22.3: tracks whether the initial cloud sync has finished, so the UI can
+// show a loading state instead of empty-state-flash during the auth race.
+let cloudSyncState = 'idle';   // 'idle' | 'loading' | 'loaded' | 'error'
+
 let collectionSort = 'recent';  // 'recent' | 'value' | 'qty' | 'id'
 let activeListSubTab = 'collection';  // current sub-tab under "My Lists"
 let lastRemoved = null;          // for Undo (collection-only)
@@ -1964,6 +1989,26 @@ try {
   sbClient = null;
 }
 window._cp('supabase-init: ' + (sbClient ? 'ok' : 'skipped'));
+
+// If Supabase has a cached session in localStorage, the INITIAL_SESSION event
+// is going to fire shortly. Pre-set cloudSyncState so views opened during the
+// gap show a loading spinner rather than an empty-state flash.
+if (sbClient) {
+  try {
+    // Supabase v2 key is `sb-<projectref>-auth-token`
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+        const raw = localStorage.getItem(k);
+        if (raw && raw.includes('access_token')) {
+          cloudSyncState = 'loading';
+          window._cp('supabase-init: cached session detected, presetting loading');
+          break;
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
 
 let currentUser = null;       // Supabase user object when signed in
 let syncing = false;          // true while a cloud op is in flight
@@ -2195,6 +2240,7 @@ async function onAuthChange(event, session) {
     collection = {};
     wants = {};
     listings = {};
+    cloudSyncState = 'idle';
     mktData = { listings: [], wantsByCard: {}, loadedAt: 0 };
     saveCollection();
     closeAuthModal();
@@ -2222,7 +2268,11 @@ async function onAuthChange(event, session) {
   // CRITICAL: set currentUser AND paint the UI immediately, BEFORE any await.
   // Otherwise a slow cloud load can leave the button gray while we wait.
   currentUser = session.user;
+  cloudSyncState = 'loading';
   updateAccountButton();
+  // Re-render any view that might show loading state now
+  if (currentView === 'collection') renderCollectionView();
+  if (currentView === 'marketplace') renderMarketplace();
   window._cp('authchange: currentUser set, loading data');
 
   try {
@@ -2267,6 +2317,7 @@ async function onAuthChange(event, session) {
     if (results[2].status === 'rejected') window._cp('authchange: PROFILE load FAILED ' + (results[2].reason?.message || ''));
 
     window._cp(`authchange: loaded coll=${Object.keys(collection).length} wants=${Object.keys(wants).length} listings=${Object.keys(listings).length}`);
+    cloudSyncState = 'loaded';
 
     saveCollection();
     updateAccountButton();   // refresh in case it got reset somehow
@@ -2276,6 +2327,7 @@ async function onAuthChange(event, session) {
     // Preload marketplace data for card detail cross-links. Fire-and-forget.
     loadMarketplaceData().catch(() => {});
   } catch (e) {
+    cloudSyncState = 'error';
     window._cp('authchange: EXCEPTION ' + e.message);
     console.error('onAuthChange exception:', e);
     showToast('Sign-in error: ' + e.message);
@@ -2410,6 +2462,8 @@ async function syncNow() {
   if (!currentUser) return;
   window._cp('sync-now: starting');
   showToast('Syncing from cloud…');
+  cloudSyncState = 'loading';
+  if (currentView === 'collection') renderCollectionView();
   try {
     const results = await Promise.allSettled([
       cloudLoadList('collections'),
@@ -2419,6 +2473,7 @@ async function syncNow() {
     collection = results[0].status === 'fulfilled' ? (results[0].value || {}) : collection;
     wants      = results[1].status === 'fulfilled' ? (results[1].value || {}) : wants;
     listings   = results[2].status === 'fulfilled' ? (results[2].value || {}) : listings;
+    cloudSyncState = 'loaded';
     saveCollection();
     showToast(`Synced: Coll ${Object.keys(collection).length}, WTB ${Object.keys(wants).length}, WTS ${Object.keys(listings).length}`);
     window._cp(`sync-now: coll=${Object.keys(collection).length} wants=${Object.keys(wants).length} listings=${Object.keys(listings).length}`);
@@ -2426,6 +2481,7 @@ async function syncNow() {
     renderGrid();
     showAccountPanel();  // refresh the panel's displayed counts
   } catch (e) {
+    cloudSyncState = 'error';
     showToast('Sync failed: ' + e.message);
     window._cp('sync-now: FAIL ' + e.message);
   }
@@ -3293,6 +3349,9 @@ function renderCollectionView() {
   const activeMap = state?.map || {};
   const ownedIds = Object.keys(activeMap);
   const hasItems = ownedIds.length > 0;
+  // If user is signed in and we're still loading cloud data, show a
+  // loading state instead of an empty-state flash.
+  const isLoading = currentUser && cloudSyncState === 'loading';
 
   // Refresh sub-tab counts (in case data changed)
   updateSublistCounts();
@@ -3300,8 +3359,25 @@ function renderCollectionView() {
   // Show/hide collection-specific UI
   document.getElementById('collection-stats').style.display = hasItems ? 'grid' : 'none';
   document.getElementById('collection-toolbar').style.display = hasItems ? 'flex' : 'none';
-  document.getElementById('collection-empty').style.display = hasItems ? 'none' : 'block';
+  document.getElementById('collection-empty').style.display = (hasItems || isLoading) ? 'none' : 'block';
   document.getElementById('grid').style.display = hasItems ? 'grid' : 'none';
+
+  // Loading state — show a brief skeleton until cloud sync completes
+  let loadingEl = document.getElementById('collection-loading');
+  if (isLoading) {
+    if (!loadingEl) {
+      loadingEl = document.createElement('div');
+      loadingEl.id = 'collection-loading';
+      loadingEl.className = 'list-loading-state';
+      loadingEl.innerHTML = '<div class="list-loading-spinner"></div><div class="list-loading-text">Syncing your lists from the cloud…</div>';
+      document.getElementById('collection-empty').parentNode.insertBefore(loadingEl, document.getElementById('collection-empty'));
+    }
+    loadingEl.style.display = 'block';
+    document.getElementById('grid').innerHTML = '';
+    return;
+  } else if (loadingEl) {
+    loadingEl.style.display = 'none';
+  }
 
   // Customize the empty-state message for the active sub-tab
   const emptyEl = document.getElementById('collection-empty');
