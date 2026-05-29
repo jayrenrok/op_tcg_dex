@@ -79,15 +79,31 @@ def load_pack_names(english_root):
     except Exception as e:
         print(f"  WARN: could not read packs.json: {e}", file=sys.stderr)
         return names
-    for p in packs:
-        pid = p.get('id')
+
+    # punk-records may store packs as a list of objects OR a dict keyed by id.
+    # Normalize to a list of (id, obj) pairs.
+    entries = []
+    if isinstance(packs, list):
+        for p in packs:
+            if isinstance(p, dict):
+                entries.append((p.get('id'), p))
+    elif isinstance(packs, dict):
+        for pid, p in packs.items():
+            if isinstance(p, dict):
+                # If the value object lacks an id field, fall back to the key
+                entries.append((p.get('id') or pid, p))
+            elif isinstance(p, str):
+                # Some datasets store {id: "Display Name"} directly
+                entries.append((pid, {'raw_title': p}))
+
+    for pid, p in entries:
         if not pid:
             continue
-        name = p.get('raw_title') or ''
+        name = p.get('raw_title') or p.get('name') or p.get('title') or ''
         if not name:
             tp = p.get('title_parts') or {}
             name = ' '.join(b for b in [tp.get('prefix'), tp.get('title'), tp.get('label')] if b)
-        names[pid] = name.strip()
+        names[pid] = (name or '').strip()
     return names
 
 
