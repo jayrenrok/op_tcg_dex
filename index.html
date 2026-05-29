@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v22.1 -->
+<!-- build: v22.2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -245,6 +245,18 @@ header {
   font-size: 13px; font-weight: 600;
 }
 .sign-out-btn:hover { background: rgba(220,38,38,0.2); }
+
+.sync-now-btn {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 10px;
+  color: #F59E0B;
+  font-size: 12px; font-weight: 600;
+}
+.sync-now-btn:hover { background: rgba(245,158,11,0.18); }
 
 /* ===== Phase 5: Location UI ===== */
 .location-row {
@@ -1360,7 +1372,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v22.1</div>
+          <div class="subtitle">Card Database · v22.2</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2144,16 +2156,14 @@ async function signOut() {
 
   // Belt-and-suspenders: also manually clear state in case the auth listener
   // doesn't fire (some Supabase SDK versions are flaky on this).
-  // We schedule a fallback that runs in 1.5s if the listener hasn't reset
-  // currentUser by then.
-  const userIdBefore = currentUser?.id;
+  // We schedule a fallback that runs in 2s if currentUser is still set.
   setTimeout(() => {
-    if (currentUser && currentUser.id === userIdBefore) {
+    if (currentUser) {
       window._cp('signout: listener didnt fire, forcing cleanup');
       // Manually fire the cleanup path
       onAuthChange('SIGNED_OUT', null);
     }
-  }, 1500);
+  }, 2000);
 
   try {
     const { error } = await sbClient.auth.signOut();
@@ -2201,62 +2211,79 @@ async function onAuthChange(event, session) {
   // === No-op cases ===
   if (!isSignedIn) return;  // already signed out, nothing to do
   if (isSignedIn && wasSignedIn && currentUser?.id === session.user.id) {
-    // Token refresh on already-signed-in user — no UI churn needed
+    // Token refresh on already-signed-in user — no UI churn needed.
+    // Still refresh currentUser in case the token's metadata changed.
     currentUser = session.user;
+    updateAccountButton();   // belt-and-suspenders: keep the dot green
     return;
   }
 
   // === Sign-in event ===
+  // CRITICAL: set currentUser AND paint the UI immediately, BEFORE any await.
+  // Otherwise a slow cloud load can leave the button gray while we wait.
   currentUser = session.user;
-
-  // Check: do we have local guest data to import? (collection only — wants/listings
-  // never exist anonymously)
-  const localEntries = Object.keys(collection).length;
-  const cloudData = await cloudLoadList('collections');
-  const cloudEntries = cloudData ? Object.keys(cloudData).length : 0;
-
-  if (localEntries > 0 && cloudEntries === 0) {
-    // Fresh cloud account + we have guest data → ask to import
-    const ok = confirm(
-      `Welcome! You have ${localEntries} card${localEntries === 1 ? '' : 's'} saved locally on this device. ` +
-      `Add them to your cloud account? (Cancel will discard them.)`
-    );
-    if (ok) {
-      await cloudImportLocal(collection);
-      showToast(`Imported ${localEntries} cards to your account`);
-    } else {
-      collection = {};
-    }
-    // After import, pull canonical state from cloud
-    collection = (await cloudLoadList('collections')) || {};
-  } else {
-    // Either no local data, or cloud already has data → cloud wins
-    collection = cloudData || {};
-  }
-
-  // Load wants and listings from cloud in parallel
-  const [w, l, prof] = await Promise.all([
-    cloudLoadList('wants'),
-    cloudLoadList('listings'),
-    loadProfile(),
-  ]);
-  wants = w || {};
-  listings = l || {};
-  currentProfile = prof;
-
-  saveCollection();
   updateAccountButton();
-  renderGrid();
-  if (currentView === 'collection') renderCollectionView();
-  if (currentView === 'marketplace') renderMarketplace();
-  // Preload marketplace data so card detail cross-links work without
-  // visiting the Marketplace tab first. Fire-and-forget.
-  loadMarketplaceData().catch(() => {});
+  window._cp('authchange: currentUser set, loading data');
+
+  try {
+    // Load collections first (special case — supports local→cloud import).
+    const localEntries = Object.keys(collection).length;
+    const cloudData = await cloudLoadList('collections');
+    const cloudEntries = cloudData ? Object.keys(cloudData).length : 0;
+
+    if (localEntries > 0 && cloudEntries === 0) {
+      // Fresh cloud account + we have guest data → ask to import
+      const ok = confirm(
+        `Welcome! You have ${localEntries} card${localEntries === 1 ? '' : 's'} saved locally on this device. ` +
+        `Add them to your cloud account? (Cancel will discard them.)`
+      );
+      if (ok) {
+        await cloudImportLocal(collection);
+        showToast(`Imported ${localEntries} cards to your account`);
+      } else {
+        collection = {};
+      }
+      // After import, pull canonical state from cloud
+      collection = (await cloudLoadList('collections')) || {};
+    } else {
+      // Either no local data, or cloud already has data → cloud wins
+      collection = cloudData || {};
+    }
+
+    // Load wants/listings/profile in parallel. Use allSettled so one failure
+    // doesn't kill the others.
+    window._cp('authchange: about to load wants/listings/profile');
+    const results = await Promise.allSettled([
+      cloudLoadList('wants'),
+      cloudLoadList('listings'),
+      loadProfile(),
+    ]);
+    wants = results[0].status === 'fulfilled' ? (results[0].value || {}) : {};
+    listings = results[1].status === 'fulfilled' ? (results[1].value || {}) : {};
+    currentProfile = results[2].status === 'fulfilled' ? results[2].value : null;
+    // Report any failures visibly
+    if (results[0].status === 'rejected') window._cp('authchange: WANTS load FAILED ' + (results[0].reason?.message || ''));
+    if (results[1].status === 'rejected') window._cp('authchange: LISTINGS load FAILED ' + (results[1].reason?.message || ''));
+    if (results[2].status === 'rejected') window._cp('authchange: PROFILE load FAILED ' + (results[2].reason?.message || ''));
+
+    window._cp(`authchange: loaded coll=${Object.keys(collection).length} wants=${Object.keys(wants).length} listings=${Object.keys(listings).length}`);
+
+    saveCollection();
+    updateAccountButton();   // refresh in case it got reset somehow
+    renderGrid();
+    if (currentView === 'collection') renderCollectionView();
+    if (currentView === 'marketplace') renderMarketplace();
+    // Preload marketplace data for card detail cross-links. Fire-and-forget.
+    loadMarketplaceData().catch(() => {});
+  } catch (e) {
+    window._cp('authchange: EXCEPTION ' + e.message);
+    console.error('onAuthChange exception:', e);
+    showToast('Sign-in error: ' + e.message);
+  }
 
   // INITIAL_SESSION event = page reload while already signed in. Don't show
   // any modal in that case — just silently restore state.
   if (event === 'INITIAL_SESSION' || event === 'INITIAL') {
-    // Just hydrate, no UI prompt
     return;
   }
 
@@ -2363,8 +2390,9 @@ function showAccountPanel() {
       </div>
       <div class="sync-status">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        ${totalCards} card${totalCards === 1 ? '' : 's'} synced across your devices
+        Collection ${Object.keys(collection).length} · WTB ${Object.keys(wants).length} · WTS ${Object.keys(listings).length}
       </div>
+      <button class="sync-now-btn" id="do-sync-now">Sync now (force refresh from cloud)</button>
       <button class="sign-out-btn" id="do-sign-out">Sign out</button>
       <button class="auth-cancel-btn" id="auth-cancel">Close</button>
     </div>
@@ -2374,6 +2402,33 @@ function showAccountPanel() {
   document.getElementById('auth-cancel').addEventListener('click', closeAuthModal);
   document.getElementById('do-edit-location').addEventListener('click', () => showLocationEditor(false));
   document.getElementById('do-edit-contact').addEventListener('click', showContactEditor);
+  document.getElementById('do-sync-now').addEventListener('click', syncNow);
+}
+
+// Force re-pull all three lists from the cloud. Useful diagnostic + recovery.
+async function syncNow() {
+  if (!currentUser) return;
+  window._cp('sync-now: starting');
+  showToast('Syncing from cloud…');
+  try {
+    const results = await Promise.allSettled([
+      cloudLoadList('collections'),
+      cloudLoadList('wants'),
+      cloudLoadList('listings'),
+    ]);
+    collection = results[0].status === 'fulfilled' ? (results[0].value || {}) : collection;
+    wants      = results[1].status === 'fulfilled' ? (results[1].value || {}) : wants;
+    listings   = results[2].status === 'fulfilled' ? (results[2].value || {}) : listings;
+    saveCollection();
+    showToast(`Synced: Coll ${Object.keys(collection).length}, WTB ${Object.keys(wants).length}, WTS ${Object.keys(listings).length}`);
+    window._cp(`sync-now: coll=${Object.keys(collection).length} wants=${Object.keys(wants).length} listings=${Object.keys(listings).length}`);
+    if (currentView === 'collection') renderCollectionView();
+    renderGrid();
+    showAccountPanel();  // refresh the panel's displayed counts
+  } catch (e) {
+    showToast('Sync failed: ' + e.message);
+    window._cp('sync-now: FAIL ' + e.message);
+  }
 }
 
 // Contact-method editor: opens a tiny inline panel that accepts a free-text
