@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v22.4 -->
+<!-- build: v23 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -115,6 +115,60 @@ header {
   display: none;
 }
 .account-btn.signed-in .sync-dot { display: block; }
+
+/* Realtime connection status dot (top-left of account button) */
+.account-btn .rt-status-dot {
+  position: absolute;
+  top: 1px; left: 1px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #6b7280;
+  border: 2px solid #0a0d14;
+  display: none;
+  transition: background 0.2s;
+}
+.account-btn.signed-in .rt-status-dot { display: block; }
+.account-btn .rt-status-dot[data-status="connecting"] { background: #F59E0B; animation: rt-pulse 1.2s infinite; }
+.account-btn .rt-status-dot[data-status="connected"]  { background: #4ADE80; }
+.account-btn .rt-status-dot[data-status="error"]      { background: #DC2626; }
+.account-btn .rt-status-dot[data-status="disconnected"] { background: #6b7280; }
+@keyframes rt-pulse { 50% { opacity: 0.4; } }
+
+/* Tab badge for new marketplace matches (red dot with count) */
+.mkt-tab-badge {
+  position: absolute;
+  top: 4px; right: 4px;
+  background: #DC2626;
+  color: #fff;
+  font-size: 9px; font-weight: 800;
+  min-width: 16px; height: 16px;
+  border-radius: 8px;
+  padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid #0a0d14;
+  line-height: 1;
+}
+.view-tab { position: relative; }
+
+/* New-match banner inside the marketplace view */
+.mkt-new-banner {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(220,38,38,0.12), rgba(245,158,11,0.10));
+  border: 1px solid rgba(245,158,11,0.35);
+  border-radius: 10px;
+}
+.mkt-new-spark { font-size: 18px; line-height: 1; }
+.mkt-new-text { flex: 1; font-size: 13px; font-weight: 600; color: #FAF7F2; }
+.mkt-new-jump {
+  padding: 6px 12px; border-radius: 8px;
+  background: rgba(245,158,11,0.2);
+  border: 1px solid rgba(245,158,11,0.45);
+  color: #F59E0B;
+  font-size: 11px; font-weight: 700;
+}
+.mkt-new-jump:hover { background: rgba(245,158,11,0.3); }
 
 /* ===== Auth modal ===== */
 .auth-modal-backdrop {
@@ -1406,7 +1460,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v22.4</div>
+          <div class="subtitle">Card Database · v23</div>
         </div>
       </div>
       <div class="header-controls">
@@ -1418,6 +1472,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
         <button class="account-btn" id="account-btn" aria-label="Account">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <span class="sync-dot"></span>
+          <span class="rt-status-dot" id="rt-status-dot" data-status="disconnected" aria-hidden="true"></span>
         </button>
       </div>
     </div>
@@ -1467,6 +1522,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
     <button class="view-tab" data-view="marketplace">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11H3l2-7h14l2 7Z"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>
       Marketplace
+      <span class="mkt-tab-badge" id="mkt-tab-badge" style="display:none">0</span>
     </button>
     <button class="view-tab" data-view="collection">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
@@ -1515,6 +1571,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
     </div>
 
     <div class="marketplace-content" id="marketplace-content" style="display:none">
+      <!-- A1: New-match banner (auto-hides 1.5s after marketplace enters view) -->
+      <div class="mkt-new-banner" id="mkt-new-banner" style="display:none">
+        <span class="mkt-new-spark">✨</span>
+        <span class="mkt-new-text" id="mkt-new-banner-text">New matches</span>
+        <button class="mkt-new-jump" id="mkt-new-jump">View matches</button>
+      </div>
+
       <!-- Browse / Matches sub-tabs -->
       <div class="list-subtabs" id="mkt-subtabs">
         <button class="list-subtab active" data-mkt-sub="browse">
@@ -2249,6 +2312,7 @@ async function onAuthChange(event, session) {
 
   // === Sign-out event === (handle first, simple path)
   if (!isSignedIn && wasSignedIn) {
+    teardownRealtime();
     currentUser = null;
     currentProfile = null;
     collection = {};
@@ -2256,6 +2320,7 @@ async function onAuthChange(event, session) {
     listings = {};
     cloudSyncState = 'idle';
     mktData = { listings: [], wantsByCard: {}, loadedAt: 0 };
+    refreshMatchBadge();   // clear the tab dot
     saveCollection();
     closeAuthModal();
     // Reset modal content so reopening shows fresh sign-in panel
@@ -2339,7 +2404,11 @@ async function onAuthChange(event, session) {
     if (currentView === 'collection') renderCollectionView();
     if (currentView === 'marketplace') renderMarketplace();
     // Preload marketplace data for card detail cross-links. Fire-and-forget.
-    loadMarketplaceData().catch(() => {});
+    loadMarketplaceData().then(() => {
+      refreshMatchBadge();
+    }).catch(() => {});
+    // Connect realtime so future changes from other devices/users appear live
+    setupRealtime();
   } catch (e) {
     cloudSyncState = 'error';
     window._cp('authchange: EXCEPTION ' + e.message);
@@ -3001,6 +3070,21 @@ function renderMarketplace() {
   // Signed in. If location/contact not set, gently nudge but still show data.
   emptyEl.style.display = 'none';
   contentEl.style.display = 'block';
+
+  // Compute "new matches" before marking last-seen, so the banner shows the
+  // count from this visit. The dot is cleared after a short delay so user can
+  // see what's new.
+  refreshMatchBadge();
+  // Mark last-seen 1.5s after entering so the banner stays visible long enough
+  // for the user to actually notice it. Subsequent views see 0 new until new
+  // matches arrive.
+  setTimeout(() => {
+    if (currentView === 'marketplace') {
+      setMktLastSeenAt(Date.now());
+      refreshMatchBadge();   // re-evaluate (will clear if no new since now)
+    }
+  }, 1500);
+
   loadMarketplaceData().then(() => renderMarketplaceListings());
 }
 
@@ -3010,7 +3094,9 @@ function renderMarketplace() {
 async function loadMarketplaceData(force = false) {
   if (!sbClient || !currentUser) return;
   const now = Date.now();
-  if (!force && mktData.loadedAt && (now - mktData.loadedAt) < 30_000) return;
+  // Short 5s floor — realtime subscriptions keep data fresh between full loads,
+  // so this only prevents rapid-tap spam (down from the 30s pre-realtime cache).
+  if (!force && mktData.loadedAt && (now - mktData.loadedAt) < 5_000) return;
 
   try {
     // 1. All listings except mine (those are in My Lists)
@@ -3039,7 +3125,10 @@ async function loadMarketplaceData(force = false) {
         .select('user_id, display_name, country_code, region, contact_method')
         .in('user_id', userIds);
       if (e3) throw e3;
-      for (const p of (profs || [])) profilesByUser[p.user_id] = p;
+      for (const p of (profs || [])) {
+        profilesByUser[p.user_id] = p;
+        profileCache[p.user_id] = p;   // also fill global cache for realtime
+      }
     }
 
     // Decorate listings with seller profile
@@ -3061,6 +3150,235 @@ async function loadMarketplaceData(force = false) {
   } catch (e) {
     console.error('loadMarketplaceData error:', e);
     showToast('Could not load marketplace: ' + (e.message || 'unknown'));
+  }
+}
+
+// ===== Realtime subscriptions (v23) =====
+// We subscribe to changes on wants/listings/profiles via Supabase Realtime so
+// the app reflects writes from other devices and other users without polling.
+// One channel per sign-in session; tear down on sign-out.
+let realtimeChannel = null;
+let realtimeStatus = 'disconnected';   // 'connecting' | 'connected' | 'disconnected' | 'error'
+const profileCache = {};               // user_id -> profile (used to decorate realtime listing events)
+
+function setRealtimeStatus(status) {
+  realtimeStatus = status;
+  const dot = document.getElementById('rt-status-dot');
+  if (dot) {
+    dot.dataset.status = status;
+    dot.title = `Realtime: ${status}`;
+  }
+  window._cp('realtime: ' + status);
+}
+
+function teardownRealtime() {
+  if (realtimeChannel && sbClient) {
+    try { sbClient.removeChannel(realtimeChannel); } catch (e) { /* ignore */ }
+  }
+  realtimeChannel = null;
+  setRealtimeStatus('disconnected');
+}
+
+function setupRealtime() {
+  if (!sbClient || !currentUser) return;
+  teardownRealtime();          // belt-and-suspenders: clear any previous channel
+  setRealtimeStatus('connecting');
+
+  realtimeChannel = sbClient
+    .channel('op-tcg-dex-' + currentUser.id)
+    // My own wants — keep local `wants` map in sync across devices
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'wants', filter: `user_id=eq.${currentUser.id}` },
+      (payload) => handleSelfListChange(payload, 'wants'))
+    // My own listings — same for `listings` map
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'listings', filter: `user_id=eq.${currentUser.id}` },
+      (payload) => handleSelfListChange(payload, 'listings'))
+    // OTHER users' listings — feed the marketplace
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'listings' },
+      (payload) => handleOtherListingChange(payload))
+    // OTHER users' wants — feed the marketplace (buyers wanting cards I sell)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'wants' },
+      (payload) => handleOtherWantChange(payload))
+    // Profile updates — refresh seller/buyer display info
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'profiles' },
+      (payload) => handleProfileChange(payload))
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') {
+        setRealtimeStatus('connected');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        setRealtimeStatus('error');
+        window._cp('realtime: ' + status + ' ' + (err?.message || ''));
+      } else if (status === 'CLOSED') {
+        setRealtimeStatus('disconnected');
+      }
+    });
+}
+
+// My own wants/listings changed (from another tab, device, or session)
+function handleSelfListChange(payload, listName) {
+  const map = listName === 'wants' ? wants : listings;
+  const event = payload.eventType;
+  if (event === 'INSERT' || event === 'UPDATE') {
+    const row = payload.new;
+    map[row.card_id] = { qty: row.qty, addedAt: row.added_at, lang: row.lang };
+  } else if (event === 'DELETE') {
+    const row = payload.old;
+    if (row?.card_id) delete map[row.card_id];
+  }
+  window._cp(`rt-self-${listName}: ${event} ${(payload.new || payload.old)?.card_id || ''}`);
+  // Re-render visible UI that depends on this map
+  if (currentView === 'collection') renderCollectionView();
+  if (currentView === 'cards' || currentView === 'sets') renderGrid();
+  if (currentView === 'marketplace') renderMarketplaceListings();   // matches may change
+  // Also recompute new-match badge since wants changed
+  if (listName === 'wants') refreshMatchBadge();
+}
+
+// Another user's listing changed → update marketplace cache and re-render
+async function handleOtherListingChange(payload) {
+  const row = payload.new || payload.old;
+  if (!row || row.user_id === currentUser?.id) return;  // ignore self (handled above)
+  const event = payload.eventType;
+  if (event === 'INSERT' || event === 'UPDATE') {
+    const seller = profileCache[row.user_id] || await fetchProfileForCache(row.user_id);
+    const decorated = { ...row, seller };
+    // Replace any existing entry for same user+card, or append
+    const idx = mktData.listings.findIndex(l => l.user_id === row.user_id && l.card_id === row.card_id);
+    if (idx >= 0) mktData.listings[idx] = decorated;
+    else mktData.listings.push(decorated);
+  } else if (event === 'DELETE') {
+    mktData.listings = mktData.listings.filter(l => !(l.user_id === row.user_id && l.card_id === row.card_id));
+  }
+  window._cp(`rt-other-listing: ${event} card=${row.card_id}`);
+  if (currentView === 'marketplace') renderMarketplaceListings();
+  refreshMatchBadge();
+}
+
+// Another user's want changed → only matters for marketplace's wantsByCard map
+async function handleOtherWantChange(payload) {
+  const row = payload.new || payload.old;
+  if (!row || row.user_id === currentUser?.id) return;
+  const event = payload.eventType;
+  if (event === 'INSERT' || event === 'UPDATE') {
+    const buyer = profileCache[row.user_id] || await fetchProfileForCache(row.user_id);
+    const list = mktData.wantsByCard[row.card_id] || (mktData.wantsByCard[row.card_id] = []);
+    const idx = list.findIndex(w => w.user_id === row.user_id);
+    const decorated = { ...row, buyer };
+    if (idx >= 0) list[idx] = decorated;
+    else list.push(decorated);
+  } else if (event === 'DELETE') {
+    const list = mktData.wantsByCard[row.card_id];
+    if (list) {
+      mktData.wantsByCard[row.card_id] = list.filter(w => w.user_id !== row.user_id);
+      if (!mktData.wantsByCard[row.card_id].length) delete mktData.wantsByCard[row.card_id];
+    }
+  }
+  if (currentView === 'marketplace') renderMarketplaceListings();
+}
+
+// Profile changes — update cache + my own profile if it's me
+async function handleProfileChange(payload) {
+  const row = payload.new || payload.old;
+  if (!row?.user_id) return;
+  if (payload.eventType === 'DELETE') {
+    delete profileCache[row.user_id];
+    return;
+  }
+  profileCache[row.user_id] = row;
+  if (row.user_id === currentUser?.id) {
+    currentProfile = row;
+  }
+  // Update any decorated listings/wants that reference this user
+  for (const l of mktData.listings) {
+    if (l.user_id === row.user_id) l.seller = row;
+  }
+  for (const arr of Object.values(mktData.wantsByCard)) {
+    for (const w of arr) if (w.user_id === row.user_id) w.buyer = row;
+  }
+  if (currentView === 'marketplace') renderMarketplaceListings();
+}
+
+// Fetch a single profile and cache it (used by realtime event handlers)
+async function fetchProfileForCache(userId) {
+  if (profileCache[userId]) return profileCache[userId];
+  try {
+    const { data } = await sbClient
+      .from('profiles')
+      .select('user_id, display_name, country_code, region, contact_method')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const prof = data || { user_id: userId, display_name: 'Anonymous' };
+    profileCache[userId] = prof;
+    return prof;
+  } catch (e) {
+    return { user_id: userId, display_name: 'Anonymous' };
+  }
+}
+
+// ===== A1: New-match notifications =====
+// Tracks the timestamp the user last viewed the Marketplace, used to compute
+// how many listings have appeared since (matching the user's WTB list).
+// Stored per-user-id in localStorage so it persists across reloads.
+const MKT_LAST_SEEN_PREFIX = 'opdex_mkt_lastseen_';
+
+function getMktLastSeenAt() {
+  if (!currentUser) return 0;
+  try {
+    const raw = localStorage.getItem(MKT_LAST_SEEN_PREFIX + currentUser.id);
+    return raw ? parseInt(raw, 10) || 0 : 0;
+  } catch { return 0; }
+}
+
+function setMktLastSeenAt(ts) {
+  if (!currentUser) return;
+  try {
+    localStorage.setItem(MKT_LAST_SEEN_PREFIX + currentUser.id, String(ts));
+  } catch { /* ignore */ }
+}
+
+// Count listings that:
+//   1. Are on the user's WTB list (i.e., a match)
+//   2. Were created/updated after the user last viewed the marketplace
+// Excludes the user's own listings.
+function countNewMatches() {
+  if (!currentUser) return 0;
+  const lastSeen = getMktLastSeenAt();
+  const myWantsSet = new Set(Object.keys(wants));
+  if (myWantsSet.size === 0) return 0;
+  let count = 0;
+  for (const l of mktData.listings) {
+    if (l.user_id === currentUser.id) continue;
+    if (!myWantsSet.has(l.card_id)) continue;
+    const ts = l.updated_at ? new Date(l.updated_at).getTime() : 0;
+    if (ts > lastSeen) count++;
+  }
+  return count;
+}
+
+function refreshMatchBadge() {
+  const n = countNewMatches();
+  const badge = document.getElementById('mkt-tab-badge');
+  if (!badge) return;
+  if (n > 0) {
+    badge.textContent = n;
+    badge.style.display = 'inline-flex';
+  } else {
+    badge.style.display = 'none';
+  }
+  // Also update the in-view banner if Marketplace is currently open
+  const banner = document.getElementById('mkt-new-banner');
+  if (banner) {
+    if (n > 0 && currentView === 'marketplace') {
+      banner.style.display = 'flex';
+      document.getElementById('mkt-new-banner-text').textContent =
+        `${n} new ${n === 1 ? 'match' : 'matches'} on your WTB list`;
+    } else {
+      banner.style.display = 'none';
+    }
   }
 }
 
@@ -4048,6 +4366,11 @@ document.querySelectorAll('[data-mkt-sub]').forEach(t => {
 });
 document.querySelectorAll('[data-mkt-loc]').forEach(t => {
   t.addEventListener('click', () => setMktLocationFilter(t.dataset.mktLoc));
+});
+
+// Wire the A1 "View matches" jump button — switches to My Matches sub-tab
+document.getElementById('mkt-new-jump')?.addEventListener('click', () => {
+  setMktSubTab('matches');
 });
 
 // Wire up collection sort buttons
