@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v23 -->
+<!-- build: v24 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -743,6 +743,14 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
   border-color: rgba(245,158,11,0.4);
   color: #F59E0B;
 }
+/* v24: Marketplace sub-tabs (Browse Listings / My Matches) — orange theme */
+.list-subtab.active[data-mkt-sub="browse"],
+.list-subtab.active[data-mkt-sub="matches"] {
+  background: rgba(245,158,11,0.18);
+  border-color: rgba(245,158,11,0.55);
+  color: #F59E0B;
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.2) inset;
+}
 .list-subtab:not(.active):hover { color: #FAF7F2; }
 .sublist-count {
   font-size: 10px;
@@ -1016,6 +1024,69 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
   display: flex; flex-direction: column; gap: 8px;
 }
 
+/* v24: Inline listing-details editor (under the WTS row when listed) */
+.listing-editor {
+  margin-top: 2px;
+  padding: 12px 14px;
+  background: rgba(245,158,11,0.05);
+  border: 1px dashed rgba(245,158,11,0.35);
+  border-radius: 10px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.listing-editor-header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #F59E0B;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.listing-warn {
+  font-size: 10px;
+  font-weight: 600;
+  color: #FCA5A5;
+  background: rgba(220,38,38,0.12);
+  border: 1px solid rgba(220,38,38,0.35);
+  border-radius: 999px;
+  padding: 2px 8px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.listing-editor-row { display: flex; gap: 10px; }
+.listing-editor-row.two-col .listing-field { flex: 1; }
+.listing-editor-row.two-col .listing-field.narrow { flex: 0 0 110px; }
+.listing-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.listing-field > span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #8B92A8;
+}
+.listing-input {
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #FAF7F2;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.listing-input:focus {
+  border-color: rgba(245,158,11,0.5);
+  background: rgba(245,158,11,0.05);
+}
+select.listing-input {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B92A8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  padding-right: 30px;
+}
+
 /* Each row: label on left, +/- on right */
 .list-control {
   display: flex; align-items: center; justify-content: space-between;
@@ -1262,6 +1333,37 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
 .mkt-tier-badge.country { background: rgba(245,158,11,0.15); color: #F59E0B; }
 .mkt-tier-badge.far { background: rgba(139,146,168,0.15); color: #8B92A8; }
 
+/* v24: Condition badge on marketplace listings */
+.mkt-cond-badge {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: 4px;
+  text-transform: uppercase;
+}
+.mkt-cond-badge.cond-mint           { background: rgba(34,197,94,0.22);  color: #4ADE80; }
+.mkt-cond-badge.cond-near_mint      { background: rgba(132,204,22,0.22); color: #A3E635; }
+.mkt-cond-badge.cond-lightly_played { background: rgba(245,158,11,0.18); color: #F59E0B; }
+.mkt-cond-badge.cond-damaged        { background: rgba(220,38,38,0.18);  color: #FCA5A5; }
+.mkt-cond-badge.cond-unset {
+  background: rgba(255,255,255,0.05);
+  color: #8B92A8;
+  font-weight: 600;
+}
+
+/* v24: Asking price prominently on listing card */
+.mkt-asking-price {
+  font-size: 16px;
+  font-weight: 800;
+  color: #F59E0B;
+  margin: 4px 0 6px;
+  letter-spacing: 0.02em;
+}
+.mkt-asking-price.unset {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8B92A8;
+  font-style: italic;
+}
+
 .mkt-actions {
   display: flex; align-items: center; flex-shrink: 0;
 }
@@ -1460,7 +1562,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v23</div>
+          <div class="subtitle">Card Database · v24</div>
         </div>
       </div>
       <div class="header-controls">
@@ -1847,6 +1949,48 @@ let collectionSort = 'recent';  // 'recent' | 'value' | 'qty' | 'id'
 let activeListSubTab = 'collection';  // current sub-tab under "My Lists"
 let lastRemoved = null;          // for Undo (collection-only)
 
+// ===== Listing details constants (v24) =====
+const CONDITION_OPTIONS = [
+  { value: 'mint',           label: 'Mint',           short: 'M'  },
+  { value: 'near_mint',      label: 'Near Mint',      short: 'NM' },
+  { value: 'lightly_played', label: 'Lightly Played', short: 'LP' },
+  { value: 'damaged',        label: 'Damaged',        short: 'DMG'},
+];
+const CONDITION_LABEL = Object.fromEntries(CONDITION_OPTIONS.map(c => [c.value, c.label]));
+
+const CURRENCY_OPTIONS = [
+  { code: 'MYR', symbol: 'RM',   name: 'Malaysian Ringgit' },
+  { code: 'SGD', symbol: 'S$',   name: 'Singapore Dollar' },
+  { code: 'THB', symbol: '฿',    name: 'Thai Baht' },
+  { code: 'IDR', symbol: 'Rp',   name: 'Indonesian Rupiah' },
+  { code: 'PHP', symbol: '₱',    name: 'Philippine Peso' },
+  { code: 'VND', symbol: '₫',    name: 'Vietnamese Dong' },
+  { code: 'USD', symbol: '$',    name: 'US Dollar' },
+  { code: 'CNY', symbol: '¥',    name: 'Chinese Yuan' },
+  { code: 'JPY', symbol: '¥',    name: 'Japanese Yen' },
+];
+const CURRENCY_BY_CODE = Object.fromEntries(CURRENCY_OPTIONS.map(c => [c.code, c]));
+
+// Default currency for a given country code (sensible regional default)
+const CURRENCY_BY_COUNTRY = {
+  MY: 'MYR', SG: 'SGD', TH: 'THB', ID: 'IDR', PH: 'PHP', VN: 'VND',
+  CN: 'CNY', JP: 'JPY', US: 'USD', HK: 'CNY', TW: 'CNY',
+};
+function defaultCurrencyForUser() {
+  return CURRENCY_BY_COUNTRY[currentProfile?.country_code] || 'USD';
+}
+
+// Format a price like "RM 25.00" or "¥1,200" (no decimals for JPY/IDR/VND)
+function formatPrice(price, currency) {
+  if (price === null || price === undefined || price === '') return null;
+  const cur = CURRENCY_BY_CODE[currency] || CURRENCY_BY_CODE.USD;
+  const noDecimal = ['JPY', 'IDR', 'VND'].includes(cur.code);
+  const formatted = noDecimal
+    ? Math.round(Number(price)).toLocaleString()
+    : Number(price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${cur.symbol}${noDecimal ? '' : ' '}${formatted}`;
+}
+
 // Map from list name to the in-memory state + table name + cloud key.
 // Lets us write one set of functions that work on any list.
 function getListState(listName) {
@@ -2096,9 +2240,13 @@ let syncing = false;          // true while a cloud op is in flight
 
 async function cloudLoadList(tableName) {
   if (!sbClient || !currentUser) return null;
+  // Listings table has extra seller-set fields (v24): condition, price, currency
+  const cols = tableName === 'listings'
+    ? 'card_id, qty, lang, added_at, condition, price, currency'
+    : 'card_id, qty, lang, added_at';
   const { data, error } = await sbClient
     .from(tableName)
-    .select('card_id, qty, lang, added_at')
+    .select(cols)
     .eq('user_id', currentUser.id);
   if (error) {
     console.error(`cloudLoadList(${tableName}) error:`, error);
@@ -2108,11 +2256,17 @@ async function cloudLoadList(tableName) {
   window._cp('cloud-load: ' + tableName + ' n=' + (data?.length || 0));
   const map = {};
   for (const row of data) {
-    map[row.card_id] = {
+    const entry = {
       qty: row.qty,
       addedAt: row.added_at,
       lang: row.lang,
     };
+    if (tableName === 'listings') {
+      entry.condition = row.condition || null;
+      entry.price = row.price != null ? Number(row.price) : null;
+      entry.currency = row.currency || null;
+    }
+    map[row.card_id] = entry;
   }
   return map;
 }
@@ -2129,6 +2283,13 @@ async function cloudUpsertCardInList(cardId, entry, tableName) {
     added_at: entry.addedAt || new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
+  // Listings carry seller-set fields (condition, price, currency). Send only
+  // what's provided; nullables stay null until user fills them in.
+  if (tableName === 'listings') {
+    payload.condition = entry.condition || null;
+    payload.price = (entry.price === null || entry.price === undefined || entry.price === '') ? null : Number(entry.price);
+    payload.currency = entry.currency || null;
+  }
   const { error } = await sbClient
     .from(tableName)
     .upsert(payload, { onConflict: 'user_id,card_id' });
@@ -3102,7 +3263,7 @@ async function loadMarketplaceData(force = false) {
     // 1. All listings except mine (those are in My Lists)
     const { data: listings, error: e1 } = await sbClient
       .from('listings')
-      .select('card_id, qty, lang, user_id, updated_at')
+      .select('card_id, qty, lang, user_id, updated_at, condition, price, currency')
       .neq('user_id', currentUser.id);
     if (e1) throw e1;
 
@@ -3505,14 +3666,20 @@ function renderListingCard(listing) {
       ? '<span class="mkt-tier-badge country">Same country</span>'
       : '<span class="mkt-tier-badge far">International</span>';
   const locText = formatLocation(seller) || 'Location not set';
-  const inCollection = !!collection[listing.card_id];
   const inMyWants = !!wants[listing.card_id];
   const cardImg = card ? proxyImage(card._rawImage, 120) : '';
   const cardName = card ? card.name : listing.card_id;
-  const price = window._prices?.[listing.card_id];
-  const priceLine = price?.active_median != null
-    ? `<div class="mkt-price">eBay active ≈ $${price.active_median.toFixed(2)}</div>`
-    : '';
+
+  // Seller-set listing details (v24)
+  const condition = listing.condition;
+  const condLabel = condition ? CONDITION_LABEL[condition] : null;
+  const priceStr = formatPrice(listing.price, listing.currency);
+  const priceBlock = priceStr
+    ? `<div class="mkt-asking-price">${escapeHtml(priceStr)}</div>`
+    : '<div class="mkt-asking-price unset">Price: contact seller</div>';
+  const conditionBadge = condLabel
+    ? `<span class="mkt-cond-badge cond-${condition}">${condLabel}</span>`
+    : '<span class="mkt-cond-badge cond-unset">Condition not set</span>';
 
   // Contact button — only show if seller has set a contact method
   const contactBtn = seller.contact_method
@@ -3527,12 +3694,12 @@ function renderListingCard(listing) {
       <div class="mkt-info">
         <div class="mkt-card-name">${escapeHtml(cardName)} <span class="mkt-card-id">${listing.card_id}</span></div>
         <div class="mkt-row-meta">
+          ${conditionBadge}
           <span class="mkt-qty">×${listing.qty}</span>
           <span class="mkt-lang">${(listing.lang || 'en').toUpperCase()}</span>
           ${inMyWants ? '<span class="mkt-flag wtb">on your WTB</span>' : ''}
-          ${inCollection ? '<span class="mkt-flag coll">in your collection</span>' : ''}
         </div>
-        ${priceLine}
+        ${priceBlock}
         <div class="mkt-seller">
           <span class="mkt-seller-name">${escapeHtml(seller.display_name || 'Anonymous')}</span>
           <span class="mkt-seller-loc">${escapeHtml(locText)}</span>
@@ -4112,12 +4279,65 @@ function renderCollectionControls(card) {
       </div>
     `;
   }
-  // Signed in: three control groups, one per list
+  // Signed in: three control groups, one per list. When WTS qty > 0, also
+  // render a listing-details editor below the WTS row so the seller can set
+  // condition / asking price / currency.
+  const wtsQty = getQty(card.id, 'listings');
+  const editor = wtsQty > 0 ? renderListingEditor(card) : '';
   return `
     <div class="lists-controls">
       ${renderListControl(card, 'collection', 'Collection', 'collection')}
       ${renderListControl(card, 'wants', 'Want to Buy', 'wtb')}
       ${renderListControl(card, 'listings', 'Want to Sell', 'wts')}
+      ${editor}
+    </div>
+  `;
+}
+
+// Inline listing-details editor (v24). Shown under the WTS row when the
+// seller has at least one of the card listed. Editing any field debounces
+// a cloud upsert so the marketplace reflects the change in ~500ms.
+function renderListingEditor(card) {
+  const entry = listings[card.id] || {};
+  const condition = entry.condition || '';
+  const price = entry.price ?? '';
+  const currency = entry.currency || defaultCurrencyForUser();
+  const condOptions = CONDITION_OPTIONS.map(c =>
+    `<option value="${c.value}" ${c.value === condition ? 'selected' : ''}>${c.label}</option>`
+  ).join('');
+  const curOptions = CURRENCY_OPTIONS.map(c =>
+    `<option value="${c.code}" ${c.code === currency ? 'selected' : ''}>${c.code} (${c.symbol})</option>`
+  ).join('');
+  const priceMissing = price === '' || price === null;
+  return `
+    <div class="listing-editor">
+      <div class="listing-editor-header">
+        Listing details
+        ${priceMissing ? '<span class="listing-warn">Set a price so buyers can see it</span>' : ''}
+      </div>
+      <div class="listing-editor-row">
+        <label class="listing-field">
+          <span>Condition</span>
+          <select class="listing-input" data-field="condition" data-card="${card.id}">
+            <option value="">— Select —</option>
+            ${condOptions}
+          </select>
+        </label>
+      </div>
+      <div class="listing-editor-row two-col">
+        <label class="listing-field">
+          <span>Price</span>
+          <input class="listing-input" type="number" min="0" step="0.01" inputmode="decimal"
+                 placeholder="0.00" value="${price}"
+                 data-field="price" data-card="${card.id}" />
+        </label>
+        <label class="listing-field narrow">
+          <span>Currency</span>
+          <select class="listing-input" data-field="currency" data-card="${card.id}">
+            ${curOptions}
+          </select>
+        </label>
+      </div>
     </div>
   `;
 }
@@ -4204,6 +4424,30 @@ function wireCollectionControls(card) {
         updateTileBadge(id);
       }
     });
+  });
+
+  // v24: Wire the inline listing-details editor (condition/price/currency).
+  // Saves are debounced — typing in the price field shouldn't fire 10 upserts.
+  let listingEditTimer = null;
+  wrap.querySelectorAll('.listing-input').forEach(input => {
+    const handler = () => {
+      const cardId = input.dataset.card;
+      const field = input.dataset.field;
+      const value = input.value;
+      const entry = listings[cardId];
+      if (!entry) return;
+      if (field === 'condition')     entry.condition = value || null;
+      else if (field === 'price')    entry.price = value === '' ? null : Number(value);
+      else if (field === 'currency') entry.currency = value || null;
+      clearTimeout(listingEditTimer);
+      listingEditTimer = setTimeout(() => {
+        cloudUpsertCardInList(cardId, entry, 'listings');
+      }, 400);
+    };
+    // 'change' for selects (fires on commit), 'input' for the price field (live)
+    input.addEventListener(input.tagName === 'SELECT' ? 'change' : 'input', handler);
+    // Stop click events from bubbling and closing the modal
+    input.addEventListener('click', e => e.stopPropagation());
   });
 }
 
