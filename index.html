@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v24 -->
+<!-- build: v24.1 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -1364,6 +1364,119 @@ select.listing-input {
   font-style: italic;
 }
 
+/* v24.1: Listing-detail modal (opens from marketplace listing click) */
+.listing-detail-panel {
+  margin-top: 14px;
+  padding: 14px;
+  background: rgba(255,255,255,0.025);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+}
+.ld-panel-header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #F59E0B;
+  margin-bottom: 10px;
+}
+.ld-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.ld-row + .ld-row { border-top: 1px solid rgba(255,255,255,0.04); }
+.ld-row-label {
+  font-size: 11px; color: #8B92A8;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ld-price {
+  font-size: 18px; font-weight: 800; color: #F59E0B;
+}
+.ld-qty, .ld-lang { font-weight: 700; }
+.ld-seller-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.ld-seller-name {
+  font-size: 14px; font-weight: 700; color: #FAF7F2;
+}
+.ld-contact-wrap {
+  margin-top: 16px;
+}
+.ld-contact-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(34,197,94,0.18);
+  border: 1px solid rgba(34,197,94,0.45);
+  color: #4ADE80;
+  font-size: 14px; font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.ld-contact-btn:hover { background: rgba(34,197,94,0.28); }
+.ld-no-contact {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px; color: #8B92A8;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+}
+.ld-card-meta {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+.ld-meta-row {
+  display: flex; justify-content: space-between;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.ld-meta-row span { color: #8B92A8; }
+.ld-meta-row b { color: #FAF7F2; font-weight: 600; }
+
+/* Confirmation bar for Collection/WTB/WTS +/- actions (v24.1) */
+.confirm-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  padding: 10px 14px;
+  background: rgba(245,158,11,0.08);
+  border: 1px dashed rgba(245,158,11,0.4);
+  border-radius: 10px;
+}
+.confirm-bar-text {
+  font-size: 12px; color: #FAF7F2; font-weight: 600;
+}
+.confirm-bar-text b { color: #F59E0B; }
+.confirm-actions { display: flex; gap: 6px; }
+.confirm-btn {
+  padding: 6px 12px; border-radius: 8px;
+  font-size: 11px; font-weight: 700;
+}
+.confirm-btn.ok {
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.4);
+  color: #4ADE80;
+}
+.confirm-btn.ok:hover { background: rgba(34,197,94,0.25); }
+.confirm-btn.cancel {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #8B92A8;
+}
+.confirm-btn.cancel:hover { color: #FAF7F2; }
+
+/* Pending state on list controls — qty shown in italics with orange hint */
+.list-control.pending .list-qty-val,
+.list-control.pending .list-control-label {
+  font-style: italic;
+}
+.list-control.pending .list-qty-val {
+  color: #F59E0B;
+}
+
 .mkt-actions {
   display: flex; align-items: center; flex-shrink: 0;
 }
@@ -1562,7 +1675,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v24</div>
+          <div class="subtitle">Card Database · v24.1</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2570,6 +2683,8 @@ async function onAuthChange(event, session) {
     }).catch(() => {});
     // Connect realtime so future changes from other devices/users appear live
     setupRealtime();
+    // Run 30-day WTB expiration once per sign-in (after wants is populated)
+    expireOldWants().catch((e) => window._cp('wtb-expire-FAIL: ' + e.message));
   } catch (e) {
     cloudSyncState = 'error';
     window._cp('authchange: EXCEPTION ' + e.message);
@@ -3480,6 +3595,30 @@ async function fetchProfileForCache(userId) {
   }
 }
 
+// v24.1: WTB entries auto-expire after 30 days. We run this once after each
+// sign-in: any want with `added_at` older than 30 days is removed from the
+// cloud and local state. WTS (listings) are NOT auto-expired — they stay
+// until the seller removes them.
+async function expireOldWants() {
+  if (!currentUser || !sbClient) return;
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;  // 30 days ago
+  const toRemove = [];
+  for (const [cardId, entry] of Object.entries(wants)) {
+    const addedAt = entry.addedAt ? new Date(entry.addedAt).getTime() : 0;
+    if (addedAt && addedAt < cutoff) toRemove.push(cardId);
+  }
+  if (toRemove.length === 0) return;
+  window._cp(`wtb-expire: removing ${toRemove.length} expired wants`);
+  // Best-effort: delete each from the cloud, then clean local state.
+  for (const cardId of toRemove) {
+    await cloudDeleteCardFromList(cardId, 'wants');
+    delete wants[cardId];
+  }
+  showToast(`${toRemove.length} WTB ${toRemove.length === 1 ? 'item' : 'items'} expired (30-day limit)`);
+  if (currentView === 'collection' && activeListSubTab === 'wants') renderCollectionView();
+  refreshMatchBadge();
+}
+
 // ===== A1: New-match notifications =====
 // Tracks the timestamp the user last viewed the Marketplace, used to compute
 // how many listings have appeared since (matching the user's WTB list).
@@ -3643,14 +3782,15 @@ function renderMarketplaceListings() {
     });
   });
 
-  // Wire card tile clicks → open card detail
-  wrap.querySelectorAll('[data-card-id]').forEach(el => {
-    el.addEventListener('click', () => {
-      const cid = el.dataset.cardId;
-      const card = cardById[cid];
-      if (!card) return;
-      window._filteredCards = [card];
-      openModal(0);
+  // Wire row clicks → open a listing-specific detail (no Collection/WTB/WTS
+  // controls; just the seller's parameters). Contact button + card thumbnail
+  // get their own handlers (stopPropagation on contact).
+  wrap.querySelectorAll('.mkt-listing').forEach((el, i) => {
+    el.addEventListener('click', (e) => {
+      // Don't open detail if user tapped the contact button
+      if (e.target.closest('.mkt-contact-btn')) return;
+      const listing = filtered[i];
+      if (listing) openListingDetail(listing);
     });
   });
 }
@@ -3673,7 +3813,12 @@ function renderListingCard(listing) {
   // Seller-set listing details (v24)
   const condition = listing.condition;
   const condLabel = condition ? CONDITION_LABEL[condition] : null;
-  const priceStr = formatPrice(listing.price, listing.currency);
+  // Use seller's country currency as a fallback when the listing has no
+  // currency set (legacy data or pre-fix). USD is the last resort.
+  const displayCurrency = listing.currency
+    || CURRENCY_BY_COUNTRY[seller.country_code]
+    || 'USD';
+  const priceStr = formatPrice(listing.price, displayCurrency);
   const priceBlock = priceStr
     ? `<div class="mkt-asking-price">${escapeHtml(priceStr)}</div>`
     : '<div class="mkt-asking-price unset">Price: contact seller</div>';
@@ -3711,6 +3856,7 @@ function renderListingCard(listing) {
   `;
 }
 
+// Heuristics to turn a contact string into a deep-link if possible.
 // Heuristics to turn a contact string into a deep-link if possible.
 function contactToUrl(contact) {
   const c = (contact || '').trim();
@@ -4299,9 +4445,18 @@ function renderCollectionControls(card) {
 // a cloud upsert so the marketplace reflects the change in ~500ms.
 function renderListingEditor(card) {
   const entry = listings[card.id] || {};
+  // FIX: if entry has no currency, immediately set it to the user's default.
+  // Otherwise saving the price without touching the currency dropdown leaves
+  // currency=null in the cloud, which formats as "$" (USD fallback) for buyers.
+  if (!entry.currency) {
+    entry.currency = defaultCurrencyForUser();
+    // Persist this initial default so the cloud row has it too. The price/
+    // condition save will follow as the user fills in those fields.
+    cloudUpsertCardInList(card.id, entry, 'listings');
+  }
   const condition = entry.condition || '';
   const price = entry.price ?? '';
-  const currency = entry.currency || defaultCurrencyForUser();
+  const currency = entry.currency;
   const condOptions = CONDITION_OPTIONS.map(c =>
     `<option value="${c.value}" ${c.value === condition ? 'selected' : ''}>${c.label}</option>`
   ).join('');
@@ -4343,10 +4498,17 @@ function renderListingEditor(card) {
 }
 
 // Render one of the three list-control rows. `cssVariant` selects color theme.
+// With v24.1 pending state: if user has tapped + or −, show the pending qty
+// AND a confirm bar below the row.
 function renderListControl(card, listName, label, cssVariant) {
-  const qty = getQty(card.id, listName);
-  if (qty === 0) {
-    return `
+  const actualQty = getQty(card.id, listName);
+  const pending = hasPending(card.id, listName);
+  const displayQty = getDisplayQty(card.id, listName);
+
+  // Row markup: either "+" only (qty=0 and no pending) or the +/- row
+  let rowHtml;
+  if (displayQty === 0 && !pending) {
+    rowHtml = `
       <div class="list-control ${cssVariant}">
         <div class="list-control-label">${label}</div>
         <button class="list-add-btn" data-action="add" data-list="${listName}" data-card="${card.id}">
@@ -4354,17 +4516,35 @@ function renderListControl(card, listName, label, cssVariant) {
         </button>
       </div>
     `;
-  }
-  return `
-    <div class="list-control ${cssVariant} owned">
-      <div class="list-control-label">${label}</div>
-      <div class="list-qty-controls">
-        <button class="qty-btn remove" data-action="dec" data-list="${listName}" data-card="${card.id}">−</button>
-        <div class="list-qty-val">${qty}</div>
-        <button class="qty-btn" data-action="inc" data-list="${listName}" data-card="${card.id}">+</button>
+  } else {
+    rowHtml = `
+      <div class="list-control ${cssVariant} ${displayQty > 0 ? 'owned' : ''} ${pending ? 'pending' : ''}">
+        <div class="list-control-label">${label}</div>
+        <div class="list-qty-controls">
+          <button class="qty-btn remove" data-action="dec" data-list="${listName}" data-card="${card.id}">−</button>
+          <div class="list-qty-val">${displayQty}</div>
+          <button class="qty-btn" data-action="inc" data-list="${listName}" data-card="${card.id}">+</button>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  }
+
+  // Optional confirm bar (only when there's a pending change)
+  let confirmHtml = '';
+  if (pending) {
+    const arrow = `${actualQty} → ${displayQty}`;
+    confirmHtml = `
+      <div class="confirm-bar">
+        <span class="confirm-bar-text">Confirm change: <b>${arrow}</b></span>
+        <div class="confirm-actions">
+          <button class="confirm-btn cancel" data-action="cancel" data-list="${listName}" data-card="${card.id}">Cancel</button>
+          <button class="confirm-btn ok" data-action="confirm" data-list="${listName}" data-card="${card.id}">OK</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return rowHtml + confirmHtml;
 }
 
 function refreshCollectionControls(card) {
@@ -4372,6 +4552,72 @@ function refreshCollectionControls(card) {
   if (!wrap) return;
   wrap.innerHTML = renderCollectionControls(card);
   wireCollectionControls(card);
+}
+
+// v24.1: Pending-change state for Collection / WTB / WTS controls.
+// When user taps + or − the change is "pending" — a confirm bar appears with
+// [Cancel] [OK]. Until OK is tapped, the cloud is not touched and the actual
+// list maps are not modified. This gives the user a clear confirmation step.
+let pendingListChanges = {};   // { cardId: { listName: pendingQty } }
+
+function getPendingQty(cardId, listName) {
+  return pendingListChanges[cardId]?.[listName];
+}
+function hasPending(cardId, listName) {
+  return getPendingQty(cardId, listName) !== undefined;
+}
+function setPending(cardId, listName, newQty) {
+  if (!pendingListChanges[cardId]) pendingListChanges[cardId] = {};
+  pendingListChanges[cardId][listName] = newQty;
+}
+function clearPending(cardId, listName) {
+  if (pendingListChanges[cardId]) {
+    delete pendingListChanges[cardId][listName];
+    if (Object.keys(pendingListChanges[cardId]).length === 0) delete pendingListChanges[cardId];
+  }
+}
+// What qty to SHOW (pending if any, else actual)
+function getDisplayQty(cardId, listName) {
+  const pending = getPendingQty(cardId, listName);
+  return pending !== undefined ? pending : getQty(cardId, listName);
+}
+
+async function confirmListChange(cardId, listName) {
+  const pendingQty = getPendingQty(cardId, listName);
+  if (pendingQty === undefined) return;
+  const state = getListState(listName);
+  const actualQty = getQty(cardId, listName);
+  const labelMap = { collection: 'collection', wants: 'WTB', listings: 'WTS' };
+
+  // Apply the change: pendingQty=0 means delete; otherwise upsert.
+  if (pendingQty === 0) {
+    delete state.map[cardId];
+    if (listName === 'collection') saveCollection();
+    await cloudDeleteCardFromList(cardId, state.table);
+    showToast(`Removed ${cardId} from ${labelMap[listName]}`);
+  } else {
+    if (!state.map[cardId]) {
+      state.map[cardId] = { qty: pendingQty, lang: currentLang || 'en', addedAt: new Date().toISOString() };
+    } else {
+      state.map[cardId].qty = pendingQty;
+    }
+    if (listName === 'collection') saveCollection();
+    await cloudUpsertCardInList(cardId, state.map[cardId], state.table);
+    if (actualQty === 0) {
+      showToast(`Added ${cardId} · ${pendingQty} in ${labelMap[listName]}`);
+    } else {
+      showToast(`Updated ${cardId} · ${pendingQty} in ${labelMap[listName]}`);
+    }
+  }
+  clearPending(cardId, listName);
+  refreshCollectionControls(cardById[cardId]);
+  if (currentView === 'collection') renderCollectionView();
+  else updateTileBadge(cardId);
+}
+
+function cancelListChange(cardId, listName) {
+  clearPending(cardId, listName);
+  refreshCollectionControls(cardById[cardId]);
 }
 
 function wireCollectionControls(card) {
@@ -4388,41 +4634,39 @@ function wireCollectionControls(card) {
     return;
   }
 
-  // Three-list controls (when signed in)
+  // Three-list controls (when signed in).
+  // v24.1: +/- buttons set a PENDING change (visual only). OK/Cancel commits
+  // or discards. This gives the user an explicit confirmation step.
   wrap.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const action = btn.dataset.action;
       const id = btn.dataset.card;
       const listName = btn.dataset.list;
-      const labelMap = { collection: 'collection', wants: 'WTB', listings: 'WTS' };
-      const lbl = labelMap[listName];
+      const currentDisplay = getDisplayQty(id, listName);
+      const actual = getQty(id, listName);
 
-      if (action === 'add' || action === 'inc') {
-        addOneToList(id, listName);
-        showToast(`Added ${id} · ${getQty(id, listName)} in ${lbl}`);
+      if (action === 'add') {
+        // First add: pending qty = 1
+        setPending(id, listName, 1);
+      } else if (action === 'inc') {
+        setPending(id, listName, currentDisplay + 1);
       } else if (action === 'dec') {
-        const wasLast = getQty(id, listName) === 1;
-        removeOneFromList(id, listName);
-        if (wasLast) {
-          // Undo is only supported for collection (legacy behavior)
-          if (listName === 'collection') {
-            showToast(`Removed ${id} from ${lbl}`, undoRemove, 4000);
-          } else {
-            showToast(`Removed ${id} from ${lbl}`);
-          }
-        } else {
-          showToast(`Reduced ${id} · ${getQty(id, listName)} in ${lbl}`);
-        }
+        if (currentDisplay <= 0) return;
+        setPending(id, listName, currentDisplay - 1);
+      } else if (action === 'cancel') {
+        cancelListChange(id, listName);
+        return;
+      } else if (action === 'confirm') {
+        confirmListChange(id, listName);
+        return;
+      }
+
+      // If the pending qty equals the actual qty, treat as no-op (user toggled back)
+      if (getPendingQty(id, listName) === actual) {
+        clearPending(id, listName);
       }
       refreshCollectionControls(cardById[id]);
-      // Re-render the appropriate view
-      if (currentView === 'collection') {
-        renderCollectionView();
-      } else {
-        // On All/Sets view: just update the badges surgically (no image re-fetch)
-        updateTileBadge(id);
-      }
     });
   });
 
@@ -4521,11 +4765,114 @@ function closeModal(e) {
   if (e && e.target !== e.currentTarget) return;
   const wasOpen = document.getElementById('modal').classList.contains('open');
   document.getElementById('modal').classList.remove('open');
+  // v24.1: clear any pending +/- changes when modal closes (they were never
+  // confirmed, so they're abandoned)
+  pendingListChanges = {};
   // If we pushed a modal history entry, go back to consume it
   // (only when triggered by user click, not by popstate handler below)
   if (wasOpen && e && history.state?.type === 'modal') {
     history.back();
   }
+}
+
+// v24.1: Open a listing-specific detail view from the marketplace.
+// Shows ONLY the seller's listing parameters (condition, price, qty, lang,
+// location, contact) plus the card metadata for reference. No Collection /
+// WTB / WTS controls — that flow lives in the regular card detail modal.
+function openListingDetail(listing) {
+  const card = cardById[listing.card_id];
+  const seller = listing.seller || {};
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modal-body');
+  if (!modal || !body) return;
+
+  // Title bar uses existing modal-header. Set the card ID + a placeholder title.
+  const idEl = document.getElementById('modal-id');
+  if (idEl) idEl.textContent = listing.card_id;
+
+  const tier = listing._loc?.tier || 'far';
+  const tierLabel = tier === 'region' ? 'COD possible'
+    : tier === 'country' ? 'Same country' : 'International';
+  const locText = formatLocation(seller) || 'Location not set';
+
+  // Currency fallback (same as listing card)
+  const displayCurrency = listing.currency
+    || CURRENCY_BY_COUNTRY[seller.country_code]
+    || 'USD';
+  const priceStr = formatPrice(listing.price, displayCurrency);
+  const condLabel = listing.condition ? CONDITION_LABEL[listing.condition] : null;
+
+  const cardImg = card ? proxyImage(card._rawImage, 600) : '';
+  const cardName = card ? card.name : listing.card_id;
+
+  // Pull a few card fields for the metadata strip (read-only)
+  const meta = card ? `
+    <div class="ld-card-meta">
+      ${card.type ? `<div class="ld-meta-row"><span>Type</span><b>${escapeHtml(card.type)}</b></div>` : ''}
+      ${card.rarity ? `<div class="ld-meta-row"><span>Rarity</span><b>${escapeHtml(card.rarity)}</b></div>` : ''}
+      ${card.color ? `<div class="ld-meta-row"><span>Color</span><b>${escapeHtml(card.color)}</b></div>` : ''}
+      ${card.set?.name ? `<div class="ld-meta-row"><span>Set</span><b>${escapeHtml(card.set.name)}</b></div>` : ''}
+    </div>
+  ` : '';
+
+  const contactBlock = seller.contact_method
+    ? `<button class="ld-contact-btn" data-contact="${escapeHtml(seller.contact_method)}">Contact seller</button>`
+    : '<div class="ld-no-contact">Seller has not set a contact method</div>';
+
+  body.innerHTML = `
+    ${cardImg ? `<div class="modal-image-wrap"><img src="${cardImg}" alt="" class="modal-image" /></div>` : ''}
+    <div class="modal-title">${escapeHtml(cardName)}</div>
+
+    <div class="listing-detail-panel">
+      <div class="ld-panel-header">Listing details</div>
+      <div class="ld-row">
+        <span class="ld-row-label">Condition</span>
+        ${condLabel
+          ? `<span class="mkt-cond-badge cond-${listing.condition}">${condLabel}</span>`
+          : '<span class="mkt-cond-badge cond-unset">Not set</span>'}
+      </div>
+      <div class="ld-row">
+        <span class="ld-row-label">Price</span>
+        <span class="ld-price">${priceStr ? escapeHtml(priceStr) : 'Contact seller'}</span>
+      </div>
+      <div class="ld-row">
+        <span class="ld-row-label">Quantity</span>
+        <span class="ld-qty">×${listing.qty}</span>
+      </div>
+      <div class="ld-row">
+        <span class="ld-row-label">Language</span>
+        <span class="ld-lang">${(listing.lang || 'en').toUpperCase()}</span>
+      </div>
+    </div>
+
+    <div class="listing-detail-panel">
+      <div class="ld-panel-header">Seller</div>
+      <div class="ld-seller-row">
+        <span class="ld-seller-name">${escapeHtml(seller.display_name || 'Anonymous')}</span>
+        <span class="mkt-tier-badge ${tier}">${tierLabel}</span>
+      </div>
+      <div class="ld-row">
+        <span class="ld-row-label">Location</span>
+        <span>${escapeHtml(locText)}</span>
+      </div>
+    </div>
+
+    <div class="ld-contact-wrap">${contactBlock}</div>
+
+    ${meta}
+  `;
+
+  modal.classList.add('open');
+  history.pushState({ type: 'modal' }, '');
+
+  // Wire the Contact button inside the listing detail
+  body.querySelector('.ld-contact-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const contact = e.currentTarget.dataset.contact || '';
+    const url = contactToUrl(contact);
+    if (url) window.open(url, '_blank', 'noopener');
+    else if (navigator.clipboard) navigator.clipboard.writeText(contact).then(() => showToast('Contact copied: ' + contact));
+  });
 }
 
 // ===== Android back button handling =====
