@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v24.8 -->
+<!-- build: v24.9 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -1965,7 +1965,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v24.8</div>
+          <div class="subtitle">Card Database · v24.9</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2981,6 +2981,36 @@ async function saveProfile(updates) {
   return true;
 }
 
+// v24.9: If the user has no display_name yet, auto-populate from their
+// Google account name. Without this, sellers show as "Anonymous" to others,
+// killing trust. Runs once per sign-in (no-op if display_name already set).
+async function backfillDisplayName() {
+  if (!currentUser) return;
+  // Already has a name? Nothing to do.
+  if (currentProfile?.display_name) return;
+  // Pull the name from Google OAuth metadata
+  const meta = currentUser.user_metadata || {};
+  let proposed = meta.full_name || meta.name || '';
+  proposed = normalizeDisplayName(proposed);
+  if (!proposed) return;  // nothing usable from Google
+  window._cp('backfill: writing display_name="' + proposed + '"');
+  const ok = await saveProfile({ display_name: proposed });
+  if (ok) {
+    // First-time notice — let user know their name is public so they can
+    // change it if they prefer a handle. Only on truly new profiles, since
+    // existing users with a country_code set won't see onboarding.
+    showToast(`Marketplace name set to "${proposed}". Change it anytime in Account.`);
+  }
+}
+
+// Normalize and cap a display-name string to 1-30 chars. Returns '' for empty.
+function normalizeDisplayName(s) {
+  if (s === null || s === undefined) return '';
+  const trimmed = String(s).trim().replace(/\s+/g, ' ');
+  if (!trimmed) return '';
+  return trimmed.slice(0, 30);
+}
+
 // Returns a human-readable location string for display
 function formatLocation(profile) {
   if (!profile || !profile.country_code) return '';
@@ -3159,6 +3189,11 @@ async function onAuthChange(event, session) {
     window._cp(`authchange: loaded coll=${Object.keys(collection).length} wants=${Object.keys(wants).length} listings=${Object.keys(listings).length}`);
     cloudSyncState = 'loaded';
 
+    // v24.9: Auto-populate display_name from Google metadata if profile has
+    // none yet. Public marketplace listings need a name — without this, every
+    // seller would show as "Anonymous" to other users.
+    await backfillDisplayName();
+
     saveCollection();
     updateAccountButton();   // refresh in case it got reset somehow
     renderGrid();
@@ -3268,6 +3303,16 @@ function showAccountPanel() {
       </div>
       <div class="location-row">
         <div class="pin-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M3 21v-2a7 7 0 0 1 14 0v2"/></svg>
+        </div>
+        <div class="loc-info">
+          <div class="loc-label">Display name (public)</div>
+          <div class="loc-value ${currentProfile?.display_name ? '' : 'empty'}">${escapeHtml(currentProfile?.display_name || "Anonymous — others won't know who you are")}</div>
+        </div>
+        <button class="loc-edit-btn" id="do-edit-display-name">${currentProfile?.display_name ? 'Edit' : 'Set'}</button>
+      </div>
+      <div class="location-row">
+        <div class="pin-icon">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
         <div class="loc-info">
@@ -3300,6 +3345,7 @@ function showAccountPanel() {
   document.getElementById('auth-cancel').addEventListener('click', closeAuthModal);
   document.getElementById('do-edit-location').addEventListener('click', () => showLocationEditor(false));
   document.getElementById('do-edit-contact').addEventListener('click', showContactEditor);
+  document.getElementById('do-edit-display-name').addEventListener('click', showDisplayNameEditor);
   document.getElementById('do-sync-now').addEventListener('click', syncNow);
 }
 
@@ -3372,6 +3418,43 @@ function showContactEditor() {
     });
   }
   document.getElementById('contact-cancel').addEventListener('click', showAccountPanel);
+}
+
+// v24.9: Editor for the public-facing display name (seen by other users
+// on marketplace listings). Trimmed and capped at 30 chars; empty = Anonymous.
+function showDisplayNameEditor() {
+  const current = currentProfile?.display_name || '';
+  const html = `
+    <div class="location-editor">
+      <h3>Display name</h3>
+      <p class="loc-explain">This is the name other users see on your marketplace listings.<br>
+      Leave blank to appear as <em>Anonymous</em>. Max 30 characters.</p>
+      <input type="text" id="dname-input" placeholder="Your name or handle" value="${escapeHtml(current)}" maxlength="30" />
+      <div class="location-actions">
+        <button class="loc-save-btn" id="dname-save">Save</button>
+        ${current ? '<button class="loc-clear-btn" id="dname-clear">Make anonymous</button>' : ''}
+        <button class="loc-cancel-btn" id="dname-cancel">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('auth-modal-content').innerHTML = html;
+  document.getElementById('dname-input').focus();
+  document.getElementById('dname-save').addEventListener('click', async () => {
+    const raw = document.getElementById('dname-input').value;
+    const val = normalizeDisplayName(raw);
+    const ok = await saveProfile({ display_name: val || null });
+    if (ok) {
+      showToast(val ? `Display name set to "${val}"` : 'You will appear as Anonymous');
+      showAccountPanel();
+    }
+  });
+  if (current) {
+    document.getElementById('dname-clear').addEventListener('click', async () => {
+      const ok = await saveProfile({ display_name: null });
+      if (ok) { showToast('You will appear as Anonymous'); showAccountPanel(); }
+    });
+  }
+  document.getElementById('dname-cancel').addEventListener('click', showAccountPanel);
 }
 
 // Build the country dropdown HTML with SEA group at top
