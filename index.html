@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v24.5 -->
+<!-- build: v24.6 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -1845,7 +1845,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v24.5</div>
+          <div class="subtitle">Card Database · v24.6</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2315,38 +2315,128 @@ function saveFxToCache(data) {
   try { localStorage.setItem(FX_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
 }
 
-// Fetch latest rates from Frankfurter. Idempotent — if a fetch is already in
-// flight or we have fresh cache, return that.
+// Fetch latest rates with a multi-source fallback chain. Browser-friendly:
+//   1. Frankfurter (smallest payload, our primary source)
+//   2. fawazahmed0/currency-api via jsDelivr CDN (CORS-enabled, no key)
+//   3. fawazahmed0 via Cloudflare Pages fallback URL
+// Returns null only if ALL three sources fail.
 async function ensureFxRates() {
   if (fxRates) return fxRates;
   const cached = loadFxFromCache();
-  if (cached) { fxRates = cached; return fxRates; }
+  if (cached) { fxRates = cached; window._cp('fx-rates: from cache date=' + cached.date); return fxRates; }
   if (fxFetchInflight) return fxFetchInflight;
 
   fxFetchInflight = (async () => {
+    // --- Source 1: Frankfurter ---
     try {
       const url = `https://api.frankfurter.dev/v2/rates?base=USD&quotes=${FX_TARGETS.filter(c => c !== 'USD').join(',')}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Frankfurter HTTP ' + res.status);
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('frankfurter HTTP ' + res.status);
       const data = await res.json();
+      if (!data?.rates || !data.rates.JPY) throw new Error('frankfurter no rates');
       const out = {
         base: 'USD',
-        rates: { USD: 1, ...(data.rates || {}) },
+        rates: { USD: 1, ...data.rates },
         date: data.date || null,
         fetchedAt: Date.now(),
+        source: 'frankfurter',
       };
       fxRates = out;
       saveFxToCache(out);
-      window._cp('fx-rates: loaded date=' + out.date);
+      window._cp('fx-rates: frankfurter ok date=' + out.date);
+      onFxRatesReady();
       return out;
-    } catch (e) {
-      window._cp('fx-rates-FAIL: ' + (e.message || 'unknown'));
-      return null;
-    } finally {
-      fxFetchInflight = null;
+    } catch (e1) {
+      window._cp('fx-rates: frankfurter FAIL ' + (e1.message || 'unknown'));
     }
+    // --- Source 2: fawazahmed0 via jsDelivr ---
+    try {
+      const url = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.min.json';
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('jsdelivr HTTP ' + res.status);
+      const data = await res.json();
+      const all = data?.usd || {};
+      const rates = {};
+      for (const code of FX_TARGETS) {
+        const key = code.toLowerCase();
+        if (all[key] != null) rates[code] = Number(all[key]);
+      }
+      if (!rates.JPY) throw new Error('jsdelivr no JPY');
+      rates.USD = 1;
+      const out = {
+        base: 'USD',
+        rates,
+        date: data?.date || null,
+        fetchedAt: Date.now(),
+        source: 'jsdelivr',
+      };
+      fxRates = out;
+      saveFxToCache(out);
+      window._cp('fx-rates: jsdelivr ok date=' + out.date);
+      onFxRatesReady();
+      return out;
+    } catch (e2) {
+      window._cp('fx-rates: jsdelivr FAIL ' + (e2.message || 'unknown'));
+    }
+    // --- Source 3: fawazahmed0 via Cloudflare Pages ---
+    try {
+      const url = 'https://latest.currency-api.pages.dev/v1/currencies/usd.min.json';
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('cfpages HTTP ' + res.status);
+      const data = await res.json();
+      const all = data?.usd || {};
+      const rates = {};
+      for (const code of FX_TARGETS) {
+        const key = code.toLowerCase();
+        if (all[key] != null) rates[code] = Number(all[key]);
+      }
+      if (!rates.JPY) throw new Error('cfpages no JPY');
+      rates.USD = 1;
+      const out = {
+        base: 'USD',
+        rates,
+        date: data?.date || null,
+        fetchedAt: Date.now(),
+        source: 'cfpages',
+      };
+      fxRates = out;
+      saveFxToCache(out);
+      window._cp('fx-rates: cfpages ok date=' + out.date);
+      onFxRatesReady();
+      return out;
+    } catch (e3) {
+      window._cp('fx-rates: cfpages FAIL ' + (e3.message || 'unknown'));
+    }
+    window._cp('fx-rates: ALL SOURCES FAILED');
+    return null;
   })();
+  // Reset the inflight pointer after promise settles (success or failure)
+  fxFetchInflight.finally(() => { fxFetchInflight = null; });
   return fxFetchInflight;
+}
+
+// Called when rates become available. Re-renders any JP converter currently
+// visible so the user sees the result without re-typing.
+function onFxRatesReady() {
+  // Re-evaluate any open JP converter input
+  document.querySelectorAll('[data-jp-input]').forEach(inp => {
+    const v = inp.value;
+    if (v === '' || v === null) return;
+    const cardId = inp.dataset.card;
+    const out = document.querySelector(`[data-jp-output][data-card="${cardId}"]`);
+    if (!out) return;
+    const pref = preferredCurrency();
+    const converted = convertCurrency(Number(v), 'JPY', pref);
+    if (converted != null) out.textContent = formatPrice(converted, pref);
+  });
+  // Update the rates-date footnote text in-place
+  document.querySelectorAll('.jp-conv-foot').forEach(el => {
+    if (fxRates?.date) el.textContent = `Rates ${fxRates.date} · daily`;
+  });
+  // Re-render marketplace listings so the inline conversion appears
+  if (currentView === 'marketplace' && typeof renderMarketplaceListings === 'function') {
+    renderMarketplaceListings();
+  }
 }
 
 // Convert amount from one currency to another using cached rates.
