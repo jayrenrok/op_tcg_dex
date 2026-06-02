@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v24.9 -->
+<!-- build: v25.0 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -177,8 +177,11 @@ header {
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   z-index: 200;
   display: none;
-  align-items: center; justify-content: center;
+  align-items: flex-start; justify-content: center;
   padding: 16px;
+  /* v25.0: allow scrolling so the on-screen keyboard never covers Save button */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .auth-modal-backdrop.open { display: flex; }
 .auth-modal {
@@ -187,6 +190,7 @@ header {
   border-radius: 18px;
   padding: 28px 24px;
   max-width: 380px; width: 100%;
+  margin: auto 0;  /* vertically center when content fits, top-anchored when scrolling */
   box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
   text-align: center;
 }
@@ -458,6 +462,60 @@ header {
   background: #141A29;
   color: #FAF7F2;
   font-weight: 400;
+}
+
+/* v25.0: Action-button row for contact + display-name editors. These reuse
+   the .location-editor container but use different class names (.loc-*-btn).
+   Styling them inline here so they don't render as unstyled text. */
+.location-actions {
+  display: flex; gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.loc-save-btn {
+  flex: 1;
+  min-width: 120px;
+  padding: 11px;
+  background: #F59E0B;
+  color: #0a0d14;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+}
+.loc-save-btn:hover { background: #FBBF24; }
+.loc-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.loc-clear-btn {
+  padding: 11px 16px;
+  background: transparent;
+  border: 1px solid rgba(220,38,38,0.4);
+  border-radius: 10px;
+  color: #FCA5A5;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.loc-clear-btn:hover { background: rgba(220,38,38,0.1); }
+.loc-cancel-btn {
+  padding: 11px 16px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: #8B92A8;
+  font-size: 13px;
+  cursor: pointer;
+}
+.loc-cancel-btn:hover { color: #FAF7F2; }
+.loc-explain {
+  font-size: 12px;
+  color: #8B92A8;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.loc-explain em {
+  color: #F59E0B;
+  font-style: normal;
+  font-weight: 600;
 }
 
 /* Onboarding card — shown after first sign-in if no location set */
@@ -1965,7 +2023,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v24.9</div>
+          <div class="subtitle">Card Database · v25.0</div>
         </div>
       </div>
       <div class="header-controls">
@@ -3438,7 +3496,15 @@ function showDisplayNameEditor() {
     </div>
   `;
   document.getElementById('auth-modal-content').innerHTML = html;
-  document.getElementById('dname-input').focus();
+  const dnameInput = document.getElementById('dname-input');
+  dnameInput.focus();
+  // v25.0: When the keyboard appears, make sure the editor (including Save
+  // button) stays visible by scrolling the action row into view.
+  dnameInput.addEventListener('focus', () => {
+    setTimeout(() => {
+      document.querySelector('.location-actions')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, 300);  // wait for the on-screen keyboard to finish animating
+  });
   document.getElementById('dname-save').addEventListener('click', async () => {
     const raw = document.getElementById('dname-input').value;
     const val = normalizeDisplayName(raw);
@@ -5050,6 +5116,34 @@ function clearListingDraft(cardId) {
   delete listingDrafts[cardId];
 }
 
+// v25.0: Update only the editor's chrome (Save button + header pills) in place.
+// Used while user is typing so we DON'T destroy the <input> they're focused on.
+function updateListingEditorChrome(cardId) {
+  const draft = getListingDraft(cardId);
+  const entry = listings[cardId] || {};
+  const priceMissing = (entry.price === null || entry.price === undefined || entry.price === '');
+  // Find the listing editor instance on the page (there's at most one per card)
+  const editor = document.querySelector(`.listing-editor [data-card="${cardId}"]`)?.closest('.listing-editor');
+  if (!editor) return;
+  // Update header pills
+  const header = editor.querySelector('.listing-editor-header');
+  if (header) {
+    // Rebuild the inner of the header only — the "Listing details" label stays.
+    // Pills change visibility based on dirty/warn state.
+    const warnHtml = (priceMissing && !draft.dirty) ? '<span class="listing-warn">Set a price so buyers can see it</span>' : '';
+    const dirtyHtml = draft.dirty ? '<span class="listing-dirty">Unsaved changes</span>' : '';
+    header.innerHTML = 'Listing details' + warnHtml + dirtyHtml;
+  }
+  // Update the Save button
+  const saveBtn = editor.querySelector('[data-action="save-listing"]');
+  if (saveBtn) {
+    saveBtn.classList.toggle('enabled', !!draft.dirty);
+    saveBtn.classList.toggle('disabled', !draft.dirty);
+    saveBtn.disabled = !draft.dirty;
+    saveBtn.textContent = draft.dirty ? 'Save listing details' : 'Saved';
+  }
+}
+
 function renderListingEditor(card) {
   const entry = listings[card.id] || {};
   const draft = getListingDraft(card.id);
@@ -5282,8 +5376,13 @@ function wireCollectionControls(card) {
     });
   });
 
-  // v24.2: Wire the inline listing-details editor.
+  // v24.2/v25.0: Wire the inline listing-details editor.
   // Edits update an in-memory draft and mark it dirty; the Save button commits.
+  //
+  // CRITICAL FIX (v25.0): Do NOT re-render the whole editor on each keystroke.
+  // Doing so destroys and rebuilds the <input>, which on mobile Chrome causes
+  // the cursor to jump back to position 0 (setSelectionRange doesn't work on
+  // type=number inputs). Instead, mutate the Save button + dirty pill in place.
   wrap.querySelectorAll('.listing-input').forEach(input => {
     const handler = () => {
       const cardId = input.dataset.card;
@@ -5294,22 +5393,8 @@ function wireCollectionControls(card) {
       else if (field === 'price')    draft.price = value;
       else if (field === 'currency') draft.currency = value;
       draft.dirty = true;
-      // Refresh the editor markup to show the Save button as enabled +
-      // hide the "set a price" warn / show "unsaved changes" pill.
-      // Use a tiny timeout so the rapid keystrokes don't all re-render.
-      clearTimeout(listingDraftTimer);
-      listingDraftTimer = setTimeout(() => {
-        refreshCollectionControls(cardById[cardId]);
-        // After re-render, restore focus to the same field so user can keep typing
-        const next = document.querySelector(`.listing-input[data-card="${cardId}"][data-field="${field}"]`);
-        if (next) {
-          next.focus();
-          if (next.type === 'number' || next.type === 'text') {
-            const len = next.value.length;
-            try { next.setSelectionRange(len, len); } catch {}
-          }
-        }
-      }, 250);
+      // Update Save button state + dirty/warn pills without re-rendering inputs
+      updateListingEditorChrome(cardId);
     };
     input.addEventListener(input.tagName === 'SELECT' ? 'change' : 'input', handler);
     input.addEventListener('click', e => e.stopPropagation());
