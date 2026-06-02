@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v24.6 -->
+<!-- build: v24.8 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -1452,6 +1452,78 @@ select.listing-input {
 .ld-seller-name {
   font-size: 14px; font-weight: 700; color: #FAF7F2;
 }
+
+/* v24.8: Seller name as a tappable link */
+.ld-seller-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 10px;
+  margin: -6px -4px;   /* widen tap target without affecting layout */
+  background: rgba(245,158,11,0.10);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 8px;
+  color: #F59E0B;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.ld-seller-link:hover { background: rgba(245,158,11,0.18); }
+.ld-seller-chev {
+  width: 12px; height: 12px;
+  opacity: 0.75;
+}
+
+/* v24.8: Seller view (all listings from one seller) */
+.seller-view-header {
+  margin-bottom: 14px;
+  padding: 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+}
+.seller-view-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px; line-height: 1;
+  color: #FAF7F2;
+  margin-bottom: 8px;
+}
+.seller-view-meta {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.seller-view-loc {
+  font-size: 12px; color: #8B92A8;
+}
+.seller-view-stats {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 12px; color: #8B92A8;
+  margin-bottom: 12px;
+}
+.seller-view-stats b {
+  color: #F59E0B; font-weight: 800;
+}
+.seller-view-dot { color: #4B5563; }
+.seller-view-contact { margin-top: 4px; }
+.seller-view-list-header {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em;
+  color: #8B92A8; font-weight: 700;
+  margin-bottom: 10px;
+}
+.seller-view-listings {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.seller-listing-wrap {
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.seller-listing-wrap:active { transform: scale(0.99); }
+.seller-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px; color: #8B92A8;
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: 10px;
+}
 .ld-contact-wrap {
   margin-top: 16px;
 }
@@ -1710,6 +1782,34 @@ select.listing-input {
   text-transform: uppercase; letter-spacing: 0.1em;
   margin-bottom: 8px;
 }
+/* v24.7: label row with target-currency selector */
+.jp-conv-label-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.jp-conv-label-row .jp-conv-label { margin-bottom: 0; }
+.jp-conv-pref {
+  padding: 4px 24px 4px 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(220,38,38,0.3);
+  border-radius: 6px;
+  color: #FCA5A5;
+  font-size: 11px;
+  font-weight: 700;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FCA5A5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 10px;
+}
+.jp-conv-pref:focus {
+  border-color: rgba(220,38,38,0.6);
+  background-color: rgba(220,38,38,0.08);
+}
+
 .jp-conv-row {
   display: flex; align-items: center; gap: 8px;
 }
@@ -1747,6 +1847,26 @@ select.listing-input {
   font-size: 9px; color: #8B92A8;
   text-align: right;
 }
+/* v24.7: rates-failed indicator + retry button inline in the footer */
+.jp-rates-failed {
+  color: #FCA5A5;
+  font-weight: 600;
+}
+.jp-retry-btn {
+  margin-left: 6px;
+  padding: 2px 8px;
+  background: rgba(220,38,38,0.15);
+  border: 1px solid rgba(220,38,38,0.4);
+  border-radius: 999px;
+  color: #FCA5A5;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.jp-retry-btn:hover { background: rgba(220,38,38,0.25); }
+.jp-retry-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* Inline currency conversion suffix on listing cards */
 .mkt-price-conv {
@@ -1845,7 +1965,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v24.6</div>
+          <div class="subtitle">Card Database · v24.8</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2452,10 +2572,19 @@ function convertCurrency(amount, fromCurrency, toCurrency) {
   return (Number(amount) / fromRate) * toRate;
 }
 
-// What's the user's preferred display currency? Mirrors the existing default
-// rule used by listings — based on country_code, falling back to USD.
+// What's the user's preferred display currency for FX conversion?
+// Priority: explicit user choice in localStorage > profile country_code > USD.
+const PREF_CURRENCY_KEY = 'opdex_pref_currency_v1';
 function preferredCurrency() {
+  try {
+    const explicit = localStorage.getItem(PREF_CURRENCY_KEY);
+    if (explicit && CURRENCY_BY_CODE[explicit]) return explicit;
+  } catch { /* ignore */ }
   return CURRENCY_BY_COUNTRY[currentProfile?.country_code] || 'USD';
+}
+function setPreferredCurrency(code) {
+  if (!CURRENCY_BY_CODE[code]) return;
+  try { localStorage.setItem(PREF_CURRENCY_KEY, code); } catch { /* ignore */ }
 }
 
 // Map from list name to the in-memory state + table name + cloud key.
@@ -5153,10 +5282,25 @@ function renderJpPricePanel(card) {
   const url = yuyuteiSearchUrl(card.id);
   if (!url) return '';
   const pref = preferredCurrency();
-  // Show the converter only when preferred currency isn't JPY itself
   const showConverter = pref !== 'JPY';
-  const rateDateLine = fxRates?.date ? `Rates ${fxRates.date} · daily` : 'Live rates loading…';
   const cardIdAttr = escapeHtml(card.id);
+
+  // Status line varies based on whether rates have loaded
+  let statusLine;
+  if (fxRates?.date) {
+    statusLine = `Rates ${fxRates.date} · ${fxRates.source || 'live'}`;
+  } else if (fxFetchInflight) {
+    statusLine = 'Live rates loading…';
+  } else {
+    statusLine = '<span class="jp-rates-failed">Rates unavailable</span> <button type="button" class="jp-retry-btn" data-jp-retry>Retry</button>';
+  }
+
+  // Currency selector — let user pick which currency they want JPY converted TO
+  const currencyOptions = CURRENCY_OPTIONS
+    .filter(c => c.code !== 'JPY')   // pointless to convert JPY → JPY
+    .map(c => `<option value="${c.code}" ${c.code === pref ? 'selected' : ''}>${c.code} (${c.symbol})</option>`)
+    .join('');
+
   return `
     <div class="jp-price-panel">
       <div class="jp-price-header">
@@ -5175,26 +5319,30 @@ function renderJpPricePanel(card) {
       </a>
       ${showConverter ? `
         <div class="jp-conv">
-          <div class="jp-conv-label">Quick convert from yuyu-tei price</div>
+          <div class="jp-conv-label-row">
+            <span class="jp-conv-label">Convert JPY to</span>
+            <select class="jp-conv-pref" data-jp-pref-select>${currencyOptions}</select>
+          </div>
           <div class="jp-conv-row">
             <span class="jp-conv-prefix">¥</span>
             <input class="jp-conv-input" type="number" min="0" step="1" inputmode="numeric"
-                   placeholder="0" data-jp-input data-card="${cardIdAttr}" />
+                   placeholder="Type ¥ amount" data-jp-input data-card="${cardIdAttr}" />
             <span class="jp-conv-arrow">→</span>
             <span class="jp-conv-out" data-jp-output data-card="${cardIdAttr}">—</span>
           </div>
-          <div class="jp-conv-foot">${escapeHtml(rateDateLine)}</div>
+          <div class="jp-conv-foot">${statusLine}</div>
         </div>
       ` : ''}
     </div>
   `;
 }
 
-// v24.5: Wire the inline JPY→preferred-currency converter in the JP price panel.
-// Idempotent — safe to call even if the panel isn't present in the DOM.
+// v24.5/v24.7: Wire the inline JPY→preferred-currency converter in the JP
+// price panel. Handles the JPY input, the target-currency dropdown, and the
+// retry button. Idempotent — safe to call even if the panel isn't present.
 function wireJpConverter() {
-  const inputs = document.querySelectorAll('[data-jp-input]');
-  inputs.forEach(inp => {
+  // Input → recompute output
+  document.querySelectorAll('[data-jp-input]').forEach(inp => {
     const cardId = inp.dataset.card;
     const out = document.querySelector(`[data-jp-output][data-card="${cardId}"]`);
     if (!out) return;
@@ -5207,8 +5355,8 @@ function wireJpConverter() {
         // Rates not loaded yet — try to fetch and re-render on success
         out.textContent = 'loading…';
         ensureFxRates().then(() => {
-          const c2 = convertCurrency(Number(v), 'JPY', pref);
-          if (c2 != null) out.textContent = formatPrice(c2, pref);
+          const c2 = convertCurrency(Number(v), 'JPY', preferredCurrency());
+          if (c2 != null) out.textContent = formatPrice(c2, preferredCurrency());
           else out.textContent = 'unavailable';
         });
         return;
@@ -5217,6 +5365,47 @@ function wireJpConverter() {
     };
     inp.addEventListener('input', recompute);
     inp.addEventListener('click', e => e.stopPropagation());
+  });
+
+  // Target-currency dropdown → persist choice, recompute, refresh status line
+  document.querySelectorAll('[data-jp-pref-select]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      setPreferredCurrency(sel.value);
+      // Recompute every visible converter using the new preferred currency
+      document.querySelectorAll('[data-jp-input]').forEach(inp => {
+        const cardId = inp.dataset.card;
+        const out = document.querySelector(`[data-jp-output][data-card="${cardId}"]`);
+        if (!out) return;
+        const v = inp.value;
+        if (v === '' || v === null) { out.textContent = '—'; return; }
+        const conv = convertCurrency(Number(v), 'JPY', sel.value);
+        out.textContent = conv != null ? formatPrice(conv, sel.value) : 'unavailable';
+      });
+    });
+    sel.addEventListener('click', e => e.stopPropagation());
+  });
+
+  // Retry button — forces re-fetch of rates from all sources
+  document.querySelectorAll('[data-jp-retry]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      btn.textContent = 'Retrying…';
+      btn.disabled = true;
+      // Force fresh fetch
+      fxRates = null;
+      try { localStorage.removeItem(FX_CACHE_KEY); } catch {}
+      const result = await ensureFxRates();
+      // Re-render the footer text — onFxRatesReady will also have fired but only
+      // updates .jp-conv-foot if rates loaded successfully
+      if (!result) {
+        // Replace the footer with the failed state again
+        const foot = btn.closest('.jp-conv-foot');
+        if (foot) {
+          foot.innerHTML = '<span class="jp-rates-failed">Rates still unavailable</span> <button type="button" class="jp-retry-btn" data-jp-retry>Retry</button>';
+          wireJpConverter();   // re-wire the new retry button
+        }
+      }
+    });
   });
 }
 
@@ -5388,7 +5577,12 @@ function openListingDetail(listing) {
     <div class="listing-detail-panel">
       <div class="ld-panel-header">Seller</div>
       <div class="ld-seller-row">
-        <span class="ld-seller-name">${escapeHtml(seller.display_name || 'Anonymous')}</span>
+        ${seller.user_id && seller.user_id !== currentUser?.id
+          ? `<button type="button" class="ld-seller-name ld-seller-link" data-seller-id="${escapeHtml(seller.user_id)}">
+              ${escapeHtml(seller.display_name || 'Anonymous')}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="ld-seller-chev"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>`
+          : `<span class="ld-seller-name">${escapeHtml(seller.display_name || 'Anonymous')}</span>`}
         <span class="mkt-tier-badge ${tier}">${tierLabel}</span>
       </div>
       <div class="ld-row">
@@ -5415,7 +5609,98 @@ function openListingDetail(listing) {
     if (url) window.open(url, '_blank', 'noopener');
     else if (navigator.clipboard) navigator.clipboard.writeText(contact).then(() => showToast('Contact copied: ' + contact));
   });
+  // v24.8: Tap seller name to view all their listings
+  body.querySelector('.ld-seller-link')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const sellerId = e.currentTarget.dataset.sellerId;
+    if (sellerId) openSellerView(sellerId);
+  });
   wireJpConverter();
+}
+
+// v24.8: Show all WTS listings from a given seller. Replaces the current modal
+// content (doesn't stack), so back button still closes the modal cleanly.
+async function openSellerView(sellerId) {
+  if (!sellerId) return;
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modal-body');
+  const idEl = document.getElementById('modal-id');
+  if (!modal || !body) return;
+
+  // Get the seller's profile (cache first, then fetch if needed)
+  let seller = profileCache[sellerId];
+  if (!seller) seller = await fetchProfileForCache(sellerId);
+
+  // Filter all known listings to this seller
+  const sellerListings = (mktData.listings || [])
+    .filter(l => l.user_id === sellerId)
+    .map(l => ({ ...l, _loc: classifyLocation(l.seller || seller) }))
+    .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+
+  // Header bar shows the seller name (the modal already has a "Back" button)
+  if (idEl) idEl.textContent = (seller.display_name || 'Seller').toUpperCase();
+
+  const locText = formatLocation(seller) || 'Location not set';
+  // Aggregate stats
+  const cardCount = sellerListings.reduce((sum, l) => sum + (l.qty || 0), 0);
+  const uniqueCount = sellerListings.length;
+
+  const tier = classifyLocation(seller).tier;
+  const tierLabel = tier === 'region' ? 'COD possible'
+    : tier === 'country' ? 'Same country' : 'International';
+
+  const contactBlock = seller.contact_method
+    ? `<button class="ld-contact-btn" data-contact="${escapeHtml(seller.contact_method)}">Contact seller</button>`
+    : '<div class="ld-no-contact">Seller has not set a contact method</div>';
+
+  const listingsHtml = sellerListings.length
+    ? sellerListings.map((l, idx) => {
+        // Reuse the listing card markup; wrap each in an element keyed by index
+        return `<div class="seller-listing-wrap" data-seller-listing-idx="${idx}">${renderListingCard(l)}</div>`;
+      }).join('')
+    : '<div class="seller-empty">This seller has no active listings.</div>';
+
+  body.innerHTML = `
+    <div class="seller-view-header">
+      <div class="seller-view-name">${escapeHtml(seller.display_name || 'Anonymous')}</div>
+      <div class="seller-view-meta">
+        <span class="seller-view-loc">${escapeHtml(locText)}</span>
+        <span class="mkt-tier-badge ${tier}">${tierLabel}</span>
+      </div>
+      <div class="seller-view-stats">
+        <span><b>${uniqueCount}</b> ${uniqueCount === 1 ? 'listing' : 'listings'}</span>
+        <span class="seller-view-dot">·</span>
+        <span><b>${cardCount}</b> ${cardCount === 1 ? 'card' : 'cards'} for sale</span>
+      </div>
+      <div class="seller-view-contact">${contactBlock}</div>
+    </div>
+    <div class="seller-view-list-header">All listings</div>
+    <div class="seller-view-listings">${listingsHtml}</div>
+  `;
+
+  modal.classList.add('open');
+  // Don't push another history entry — we're replacing modal content,
+  // not stacking. Back still closes the modal cleanly.
+
+  // Wire contact button
+  body.querySelector('.ld-contact-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const contact = e.currentTarget.dataset.contact || '';
+    const url = contactToUrl(contact);
+    if (url) window.open(url, '_blank', 'noopener');
+    else if (navigator.clipboard) navigator.clipboard.writeText(contact).then(() => showToast('Contact copied: ' + contact));
+  });
+
+  // Wire row clicks → re-open listing detail for that listing
+  body.querySelectorAll('.seller-listing-wrap').forEach((el, i) => {
+    el.addEventListener('click', (e) => {
+      // Don't drill in if user tapped the inline contact button (defensive,
+      // we don't render one inside seller-view rows but keep it safe)
+      if (e.target.closest('.mkt-contact-btn')) return;
+      const listing = sellerListings[i];
+      if (listing) openListingDetail(listing);
+    });
+  });
 }
 
 // ===== Android back button handling =====
