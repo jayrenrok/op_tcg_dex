@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v25.0 -->
+<!-- build: v25.1 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -1829,6 +1829,48 @@ select.listing-input {
 }
 .jp-price-btn:hover { background: rgba(220,38,38,0.25); }
 
+/* v25.1: EN market price quick-link panel (Limitless / TCGPlayer / Cardmarket).
+   Same structure as the JP panel but with blue accent to distinguish at a glance. */
+.en-price-panel {
+  margin-top: 16px;
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(59,130,246,0.06) 0%, rgba(59,130,246,0.02) 100%);
+  border: 1px solid rgba(59,130,246,0.18);
+  border-radius: 12px;
+}
+.en-price-panel .jp-price-title { color: #93C5FD; }
+.en-price-panel .jp-conv-prefix { color: #93C5FD; }
+.en-price-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%;
+  padding: 12px;
+  background: rgba(59,130,246,0.15);
+  border: 1px solid rgba(59,130,246,0.4);
+  border-radius: 10px;
+  color: #93C5FD;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.en-price-btn:hover { background: rgba(59,130,246,0.25); }
+.en-conv {
+  border-top-color: rgba(59,130,246,0.2) !important;
+}
+.en-price-panel .jp-conv-input:focus {
+  border-color: rgba(59,130,246,0.5);
+  background: rgba(59,130,246,0.05);
+}
+.en-price-panel .jp-conv-pref {
+  border-color: rgba(59,130,246,0.3);
+  color: #93C5FD;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2393C5FD' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+.en-price-panel .jp-conv-pref:focus {
+  border-color: rgba(59,130,246,0.6);
+  background-color: rgba(59,130,246,0.08);
+}
+
 /* v24.5: JPY converter widget inside JP price panel */
 .jp-conv {
   margin-top: 12px;
@@ -2023,14 +2065,16 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v25.0</div>
+          <div class="subtitle">Card Database · v25.1</div>
         </div>
       </div>
       <div class="header-controls">
         <div class="lang-switcher" id="lang-switcher">
           <button class="lang-btn active" data-lang="en">EN</button>
           <button class="lang-btn" data-lang="jp">日本語</button>
-          <button class="lang-btn" data-lang="sc">简中</button>
+          <!-- v25.1: ZH tab hidden because we don't yet have ZH card images.
+               The 'sc' code path is preserved for legacy localStorage values
+               and future re-enablement. -->
         </div>
         <button class="account-btn" id="account-btn" aria-label="Account">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -2292,6 +2336,13 @@ const LANG_HOSTS = {
   sc: 'www.onepiece-cardgame.cn',
 };
 let currentLang = localStorage.getItem('opdex_lang') || 'en';
+// v25.1: ZH tab is currently hidden (no ZH card images yet). Anyone still
+// holding 'sc' in localStorage from before gets bumped to JP, the closest
+// fallback. The 'sc' code paths remain intact for when we re-enable it.
+if (currentLang === 'sc') {
+  currentLang = 'jp';
+  try { localStorage.setItem('opdex_lang', 'jp'); } catch {}
+}
 
 // ===== Phase 5: Location data =====
 // Curated country + region lists. SEA countries pinned to top of dropdown.
@@ -2363,6 +2414,22 @@ function setLang(lang) {
   // imageFor() picks up the new lang automatically on next render.
   // Re-render only the visible grid (collection-view cards keep their stored lang via imageFor).
   renderGrid();
+  // v25.1: If a card detail modal is open, re-render it so the JP/EN price
+  // panel matches the new language. Skip for listing-detail (it follows the
+  // listing's lang, not currentLang).
+  const modal = document.getElementById('modal');
+  if (modal?.classList.contains('open')) {
+    const modalIdEl = document.getElementById('modal-id');
+    const cardId = modalIdEl?.textContent?.trim();
+    // Only re-render if it's a card-detail modal (has a card-id in header)
+    // AND the card exists. Listing-detail modals show OP05-119 too, but the
+    // user's currentLang change shouldn't affect a listing's display.
+    if (cardId && cardById[cardId] && !document.querySelector('.listing-detail-panel')) {
+      const card = cardById[cardId];
+      const idx = (window._filteredCards || []).findIndex(c => c.id === cardId);
+      if (idx >= 0) openModal(idx);
+    }
+  }
 }
 
 function normalize(card) {
@@ -2605,6 +2672,17 @@ function onFxRatesReady() {
     if (!out) return;
     const pref = preferredCurrency();
     const converted = convertCurrency(Number(v), 'JPY', pref);
+    if (converted != null) out.textContent = formatPrice(converted, pref);
+  });
+  // v25.1: Re-evaluate any open EN converter input
+  document.querySelectorAll('[data-en-input]').forEach(inp => {
+    const v = inp.value;
+    if (v === '' || v === null) return;
+    const cardId = inp.dataset.card;
+    const out = document.querySelector(`[data-en-output][data-card="${cardId}"]`);
+    if (!out) return;
+    const pref = preferredCurrency();
+    const converted = convertCurrency(Number(v), 'USD', pref);
     if (converted != null) out.textContent = formatPrice(converted, pref);
   });
   // Update the rates-date footnote text in-place
@@ -5040,8 +5118,9 @@ function openModal(idx) {
     ${card.ability ? `<div class="ability-box"><div class="ability-lbl" style="color:${accent}">Ability</div><div class="ability-text">${card.ability}</div></div>` : ''}
     <div id="collection-controls-wrap">${renderCollectionControls(card)}</div>
     <div id="modal-marketplace-wrap">${renderModalMarketplace(card)}</div>
-    ${renderJpPricePanel(card)}
-    ${renderPrices(card)}
+    ${renderMarketPricePanel(card)}
+    <!-- v25.1: eBay 'Market Prices' panel removed from UI. The renderPrices()
+         function and underlying fetch pipeline remain in place for future use. -->
   `;
   document.getElementById('modal').classList.add('open');
   wireCollectionControls(card);
@@ -5442,7 +5521,37 @@ function wireCollectionControls(card) {
 let listingDraftTimer = null;
 
 
-// v24.4: Quick deep-link to yuyu-tei for live JP pricing.
+// v25.1: Helper — build a Limitless One Piece deep-link for a card.
+// Limitless uses direct card-ID URLs (no search needed). They aggregate
+// TCGPlayer (USD) and Cardmarket (EUR) prices into one page, plus a JP/EN
+// language toggle. For parallels like OP05-119_p1, strip suffix to match base.
+function limitlessCardUrl(cardId) {
+  if (!cardId) return null;
+  const baseId = cardId.replace(/_[a-z]+\d*$/i, '');
+  return `https://onepiece.limitlesstcg.com/cards/${encodeURIComponent(baseId)}`;
+}
+
+// v25.1: Market-price panel is now language-aware. JP cards → yuyu-tei
+// (JPY pricing, SEA reference). EN cards → Limitless (TCGPlayer USD +
+// Cardmarket EUR, English collector reference). One panel per card,
+// matching the language the user is viewing (or the listing's language).
+//
+// `langOverride` lets the listing-detail modal show the listing's language
+// regardless of what currentLang is set to globally.
+function renderMarketPricePanel(card, langOverride) {
+  const lang = langOverride || currentLang;
+  if (lang === 'jp' || lang === 'sc') {
+    // Treat ZH like JP for now since the price source is yuyu-tei either way
+    // and ZH cards are typically JP reprints. The 'sc' arm is kept for when
+    // the tab is re-enabled — it won't trigger today since 'sc' gets coerced
+    // to 'jp' on load.
+    return renderJpPricePanel(card);
+  }
+  // Default: EN
+  return renderEnPricePanel(card);
+}
+
+// v24.4 / refactored v25.1: yuyu-tei deep-link panel for JP-version cards.
 // SEA collectors of the JP version reference yuyu-tei for current prices.
 // We don't fetch or scrape — we just open yuyu-tei's search filtered to this
 // card in the user's browser. They see the live JPY price directly.
@@ -5497,6 +5606,69 @@ function renderJpPricePanel(card) {
                    placeholder="Type ¥ amount" data-jp-input data-card="${cardIdAttr}" />
             <span class="jp-conv-arrow">→</span>
             <span class="jp-conv-out" data-jp-output data-card="${cardIdAttr}">—</span>
+          </div>
+          <div class="jp-conv-foot">${statusLine}</div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// v25.1: Limitless deep-link panel for EN-version cards.
+// Limitless aggregates TCGPlayer (USD) and Cardmarket (EUR) prices into a
+// single card page — the EN-side analog to yuyu-tei. URL pattern is direct
+// card-ID, so no search disambiguation needed.
+function renderEnPricePanel(card) {
+  const url = limitlessCardUrl(card.id);
+  if (!url) return '';
+  const pref = preferredCurrency();
+  const showConverter = pref !== 'USD';
+  const cardIdAttr = escapeHtml(card.id);
+
+  let statusLine;
+  if (fxRates?.date) {
+    statusLine = `Rates ${fxRates.date} · ${fxRates.source || 'live'}`;
+  } else if (fxFetchInflight) {
+    statusLine = 'Live rates loading…';
+  } else {
+    statusLine = '<span class="jp-rates-failed">Rates unavailable</span> <button type="button" class="jp-retry-btn" data-jp-retry>Retry</button>';
+  }
+
+  // For the EN side, USD is the natural source (TCGPlayer). Offer all targets
+  // except USD itself.
+  const currencyOptions = CURRENCY_OPTIONS
+    .filter(c => c.code !== 'USD')
+    .map(c => `<option value="${c.code}" ${c.code === pref ? 'selected' : ''}>${c.code} (${c.symbol})</option>`)
+    .join('');
+
+  return `
+    <div class="en-price-panel">
+      <div class="jp-price-header">
+        <span class="jp-price-flag">🇺🇸</span>
+        <span class="jp-price-title">EN Market Price</span>
+        <span class="jp-price-source">via Limitless</span>
+      </div>
+      <div class="jp-price-sub">Check the current English market price — Limitless aggregates TCGplayer (USD) and Cardmarket (EUR) into one view.</div>
+      <a class="en-price-btn" href="${url}" target="_blank" rel="noopener noreferrer">
+        Open on Limitless
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-left:6px;vertical-align:middle">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </a>
+      ${showConverter ? `
+        <div class="jp-conv en-conv">
+          <div class="jp-conv-label-row">
+            <span class="jp-conv-label">Convert USD to</span>
+            <select class="jp-conv-pref" data-en-pref-select>${currencyOptions}</select>
+          </div>
+          <div class="jp-conv-row">
+            <span class="jp-conv-prefix">$</span>
+            <input class="jp-conv-input" type="number" min="0" step="0.01" inputmode="decimal"
+                   placeholder="Type USD amount" data-en-input data-card="${cardIdAttr}" />
+            <span class="jp-conv-arrow">→</span>
+            <span class="jp-conv-out" data-en-output data-card="${cardIdAttr}">—</span>
           </div>
           <div class="jp-conv-foot">${statusLine}</div>
         </div>
@@ -5574,6 +5746,46 @@ function wireJpConverter() {
         }
       }
     });
+  });
+
+  // v25.1: EN converter (USD → preferred currency). Same shape as the JP one
+  // but reads `data-en-*` attributes and converts FROM 'USD' instead of 'JPY'.
+  document.querySelectorAll('[data-en-input]').forEach(inp => {
+    const cardId = inp.dataset.card;
+    const out = document.querySelector(`[data-en-output][data-card="${cardId}"]`);
+    if (!out) return;
+    const recompute = () => {
+      const v = inp.value;
+      if (v === '' || v === null) { out.textContent = '—'; return; }
+      const pref = preferredCurrency();
+      const converted = convertCurrency(Number(v), 'USD', pref);
+      if (converted == null) {
+        out.textContent = 'loading…';
+        ensureFxRates().then(() => {
+          const c2 = convertCurrency(Number(v), 'USD', preferredCurrency());
+          out.textContent = c2 != null ? formatPrice(c2, preferredCurrency()) : 'unavailable';
+        });
+        return;
+      }
+      out.textContent = formatPrice(converted, pref);
+    };
+    inp.addEventListener('input', recompute);
+    inp.addEventListener('click', e => e.stopPropagation());
+  });
+  document.querySelectorAll('[data-en-pref-select]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      setPreferredCurrency(sel.value);
+      document.querySelectorAll('[data-en-input]').forEach(inp => {
+        const cardId = inp.dataset.card;
+        const out = document.querySelector(`[data-en-output][data-card="${cardId}"]`);
+        if (!out) return;
+        const v = inp.value;
+        if (v === '' || v === null) { out.textContent = '—'; return; }
+        const conv = convertCurrency(Number(v), 'USD', sel.value);
+        out.textContent = conv != null ? formatPrice(conv, sel.value) : 'unavailable';
+      });
+    });
+    sel.addEventListener('click', e => e.stopPropagation());
   });
 }
 
@@ -5759,7 +5971,7 @@ function openListingDetail(listing) {
       </div>
     </div>
 
-    ${renderJpPricePanel({ id: listing.card_id })}
+    ${renderMarketPricePanel({ id: listing.card_id }, listing.lang)}
 
     <div class="ld-contact-wrap">${contactBlock}</div>
 
