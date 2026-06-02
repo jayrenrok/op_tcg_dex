@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v24.1 -->
+<!-- build: v24.2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -1053,6 +1053,43 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
   text-transform: none;
   letter-spacing: 0;
 }
+.listing-dirty {
+  font-size: 10px;
+  font-weight: 700;
+  color: #F59E0B;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.4);
+  border-radius: 999px;
+  padding: 2px 8px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.listing-editor-actions {
+  margin-top: 6px;
+  display: flex; justify-content: flex-end;
+}
+.listing-save-btn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.listing-save-btn.enabled {
+  background: rgba(245,158,11,0.22);
+  border-color: rgba(245,158,11,0.55);
+  color: #F59E0B;
+  cursor: pointer;
+}
+.listing-save-btn.enabled:hover { background: rgba(245,158,11,0.32); }
+.listing-save-btn.disabled {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
+  color: #6b7280;
+  cursor: default;
+}
 .listing-editor-row { display: flex; gap: 10px; }
 .listing-editor-row.two-col .listing-field { flex: 1; }
 .listing-editor-row.two-col .listing-field.narrow { flex: 0 0 110px; }
@@ -1365,6 +1402,20 @@ select.listing-input {
 }
 
 /* v24.1: Listing-detail modal (opens from marketplace listing click) */
+/* Smaller, centered card image — the listing params are the primary content */
+.modal-image-wrap {
+  width: 55%;
+  max-width: 200px;
+  margin: 0 auto 14px;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+.modal-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
 .listing-detail-panel {
   margin-top: 14px;
   padding: 14px;
@@ -1675,7 +1726,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v24.1</div>
+          <div class="subtitle">Card Database · v24.2</div>
         </div>
       </div>
       <div class="header-controls">
@@ -4443,32 +4494,52 @@ function renderCollectionControls(card) {
 // Inline listing-details editor (v24). Shown under the WTS row when the
 // seller has at least one of the card listed. Editing any field debounces
 // a cloud upsert so the marketplace reflects the change in ~500ms.
+// v24.2: Drafts for listing-editor fields (condition / price / currency).
+// Edits don't auto-save anymore — user must tap "Save listing details" to
+// commit. The draft holds the unsaved values per card.
+let listingDrafts = {};  // { cardId: { condition, price, currency, dirty } }
+
+function getListingDraft(cardId) {
+  if (!listingDrafts[cardId]) {
+    const entry = listings[cardId] || {};
+    listingDrafts[cardId] = {
+      condition: entry.condition || '',
+      price: entry.price ?? '',
+      currency: entry.currency || defaultCurrencyForUser(),
+      dirty: false,
+    };
+  }
+  return listingDrafts[cardId];
+}
+
+function clearListingDraft(cardId) {
+  delete listingDrafts[cardId];
+}
+
 function renderListingEditor(card) {
   const entry = listings[card.id] || {};
-  // FIX: if entry has no currency, immediately set it to the user's default.
-  // Otherwise saving the price without touching the currency dropdown leaves
-  // currency=null in the cloud, which formats as "$" (USD fallback) for buyers.
-  if (!entry.currency) {
-    entry.currency = defaultCurrencyForUser();
-    // Persist this initial default so the cloud row has it too. The price/
-    // condition save will follow as the user fills in those fields.
-    cloudUpsertCardInList(card.id, entry, 'listings');
+  const draft = getListingDraft(card.id);
+  // Sync draft with current cloud state on first render, but ONLY if not dirty
+  // (so we don't overwrite user's unsaved edits if the cloud changes underneath)
+  if (!draft.dirty) {
+    draft.condition = entry.condition || '';
+    draft.price = entry.price ?? '';
+    draft.currency = entry.currency || defaultCurrencyForUser();
   }
-  const condition = entry.condition || '';
-  const price = entry.price ?? '';
-  const currency = entry.currency;
   const condOptions = CONDITION_OPTIONS.map(c =>
-    `<option value="${c.value}" ${c.value === condition ? 'selected' : ''}>${c.label}</option>`
+    `<option value="${c.value}" ${c.value === draft.condition ? 'selected' : ''}>${c.label}</option>`
   ).join('');
   const curOptions = CURRENCY_OPTIONS.map(c =>
-    `<option value="${c.code}" ${c.code === currency ? 'selected' : ''}>${c.code} (${c.symbol})</option>`
+    `<option value="${c.code}" ${c.code === draft.currency ? 'selected' : ''}>${c.code} (${c.symbol})</option>`
   ).join('');
-  const priceMissing = price === '' || price === null;
+  const priceMissing = (entry.price === null || entry.price === undefined || entry.price === '');
+  const showWarn = priceMissing && !draft.dirty;
   return `
     <div class="listing-editor">
       <div class="listing-editor-header">
         Listing details
-        ${priceMissing ? '<span class="listing-warn">Set a price so buyers can see it</span>' : ''}
+        ${showWarn ? '<span class="listing-warn">Set a price so buyers can see it</span>' : ''}
+        ${draft.dirty ? '<span class="listing-dirty">Unsaved changes</span>' : ''}
       </div>
       <div class="listing-editor-row">
         <label class="listing-field">
@@ -4483,7 +4554,7 @@ function renderListingEditor(card) {
         <label class="listing-field">
           <span>Price</span>
           <input class="listing-input" type="number" min="0" step="0.01" inputmode="decimal"
-                 placeholder="0.00" value="${price}"
+                 placeholder="0.00" value="${draft.price}"
                  data-field="price" data-card="${card.id}" />
         </label>
         <label class="listing-field narrow">
@@ -4492,6 +4563,13 @@ function renderListingEditor(card) {
             ${curOptions}
           </select>
         </label>
+      </div>
+      <div class="listing-editor-actions">
+        <button class="listing-save-btn ${draft.dirty ? 'enabled' : 'disabled'}"
+                ${draft.dirty ? '' : 'disabled'}
+                data-action="save-listing" data-card="${card.id}">
+          ${draft.dirty ? 'Save listing details' : 'Saved'}
+        </button>
       </div>
     </div>
   `;
@@ -4670,30 +4748,79 @@ function wireCollectionControls(card) {
     });
   });
 
-  // v24: Wire the inline listing-details editor (condition/price/currency).
-  // Saves are debounced — typing in the price field shouldn't fire 10 upserts.
-  let listingEditTimer = null;
+  // v24.2: Wire the inline listing-details editor.
+  // Edits update an in-memory draft and mark it dirty; the Save button commits.
   wrap.querySelectorAll('.listing-input').forEach(input => {
     const handler = () => {
       const cardId = input.dataset.card;
       const field = input.dataset.field;
       const value = input.value;
-      const entry = listings[cardId];
-      if (!entry) return;
-      if (field === 'condition')     entry.condition = value || null;
-      else if (field === 'price')    entry.price = value === '' ? null : Number(value);
-      else if (field === 'currency') entry.currency = value || null;
-      clearTimeout(listingEditTimer);
-      listingEditTimer = setTimeout(() => {
-        cloudUpsertCardInList(cardId, entry, 'listings');
-      }, 400);
+      const draft = getListingDraft(cardId);
+      if (field === 'condition')     draft.condition = value;
+      else if (field === 'price')    draft.price = value;
+      else if (field === 'currency') draft.currency = value;
+      draft.dirty = true;
+      // Refresh the editor markup to show the Save button as enabled +
+      // hide the "set a price" warn / show "unsaved changes" pill.
+      // Use a tiny timeout so the rapid keystrokes don't all re-render.
+      clearTimeout(listingDraftTimer);
+      listingDraftTimer = setTimeout(() => {
+        refreshCollectionControls(cardById[cardId]);
+        // After re-render, restore focus to the same field so user can keep typing
+        const next = document.querySelector(`.listing-input[data-card="${cardId}"][data-field="${field}"]`);
+        if (next) {
+          next.focus();
+          if (next.type === 'number' || next.type === 'text') {
+            const len = next.value.length;
+            try { next.setSelectionRange(len, len); } catch {}
+          }
+        }
+      }, 250);
     };
-    // 'change' for selects (fires on commit), 'input' for the price field (live)
     input.addEventListener(input.tagName === 'SELECT' ? 'change' : 'input', handler);
-    // Stop click events from bubbling and closing the modal
     input.addEventListener('click', e => e.stopPropagation());
   });
+
+  // v24.2: Save button — commits the draft to the listings map + cloud
+  wrap.querySelectorAll('[data-action="save-listing"]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const cardId = btn.dataset.card;
+      const draft = listingDrafts[cardId];
+      if (!draft || !draft.dirty) return;
+      const entry = listings[cardId];
+      if (!entry) {
+        showToast('Add this card to WTS first');
+        return;
+      }
+      // Validate: condition optional, price optional but must be a number if provided,
+      // currency required (we default it on render so this is just defensive)
+      const priceVal = draft.price === '' ? null : Number(draft.price);
+      if (draft.price !== '' && (isNaN(priceVal) || priceVal < 0)) {
+        showToast('Price must be a non-negative number');
+        return;
+      }
+      entry.condition = draft.condition || null;
+      entry.price = priceVal;
+      entry.currency = draft.currency || defaultCurrencyForUser();
+      // Show "Saving…" UX
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      const ok = await cloudUpsertCardInList(cardId, entry, 'listings');
+      if (ok !== false) {
+        draft.dirty = false;
+        showToast('Listing details saved');
+      } else {
+        showToast('Could not save — please try again');
+      }
+      refreshCollectionControls(cardById[cardId]);
+    });
+  });
 }
+
+// Debounce timer for editor re-renders (declared at module scope so it survives
+// re-wiring across re-renders within a single editor session)
+let listingDraftTimer = null;
 
 
 function renderPrices(card) {
@@ -4768,6 +4895,8 @@ function closeModal(e) {
   // v24.1: clear any pending +/- changes when modal closes (they were never
   // confirmed, so they're abandoned)
   pendingListChanges = {};
+  // v24.2: same for listing-details drafts — abandon unsaved edits
+  listingDrafts = {};
   // If we pushed a modal history entry, go back to consume it
   // (only when triggered by user click, not by popstate handler below)
   if (wasOpen && e && history.state?.type === 'modal') {
@@ -4802,7 +4931,7 @@ function openListingDetail(listing) {
   const priceStr = formatPrice(listing.price, displayCurrency);
   const condLabel = listing.condition ? CONDITION_LABEL[listing.condition] : null;
 
-  const cardImg = card ? proxyImage(card._rawImage, 600) : '';
+  const cardImg = card ? proxyImage(card._rawImage, 300) : '';
   const cardName = card ? card.name : listing.card_id;
 
   // Pull a few card fields for the metadata strip (read-only)
