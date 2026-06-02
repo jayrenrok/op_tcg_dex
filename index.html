@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v24.2 -->
+<!-- build: v24.5 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -1401,20 +1401,20 @@ select.listing-input {
   font-style: italic;
 }
 
-/* v24.1: Listing-detail modal (opens from marketplace listing click) */
-/* Smaller, centered card image — the listing params are the primary content */
+/* v24.3: Listing-detail card image matches the regular card detail size
+   (Sets / My Lists) — full body width with the trading-card aspect ratio. */
 .modal-image-wrap {
-  width: 55%;
-  max-width: 200px;
-  margin: 0 auto 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
+  margin-bottom: 16px;
   position: relative;
+  padding-bottom: 139.86%;   /* same aspect as .modal-img */
 }
 .modal-image {
-  width: 100%;
-  height: auto;
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
   display: block;
+  object-fit: cover;
 }
 .listing-detail-panel {
   margin-top: 14px;
@@ -1656,6 +1656,125 @@ select.listing-input {
   border: 1px solid rgba(245,158,11,0.15);
   border-radius: 12px;
 }
+
+/* v24.4: JP market price quick-link panel */
+.jp-price-panel {
+  margin-top: 16px;
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(220,38,38,0.06) 0%, rgba(220,38,38,0.02) 100%);
+  border: 1px solid rgba(220,38,38,0.18);
+  border-radius: 12px;
+}
+.jp-price-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+.jp-price-flag { font-size: 16px; line-height: 1; }
+.jp-price-title {
+  flex: 1;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.25em;
+  color: #FCA5A5; font-weight: 700;
+}
+.jp-price-source {
+  font-size: 9px; color: #8B92A8;
+  text-transform: uppercase; letter-spacing: 0.15em;
+}
+.jp-price-sub {
+  font-size: 11px; color: #8B92A8;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+.jp-price-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%;
+  padding: 12px;
+  background: rgba(220,38,38,0.15);
+  border: 1px solid rgba(220,38,38,0.4);
+  border-radius: 10px;
+  color: #FCA5A5;
+  font-size: 13px; font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.jp-price-btn:hover { background: rgba(220,38,38,0.25); }
+
+/* v24.5: JPY converter widget inside JP price panel */
+.jp-conv {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(220,38,38,0.2);
+}
+.jp-conv-label {
+  font-size: 10px; color: #8B92A8;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.jp-conv-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.jp-conv-prefix {
+  font-size: 14px; font-weight: 700; color: #FCA5A5;
+}
+.jp-conv-input {
+  flex: 1;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: #FAF7F2;
+  font-size: 13px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.jp-conv-input:focus {
+  border-color: rgba(220,38,38,0.5);
+  background: rgba(220,38,38,0.05);
+}
+.jp-conv-arrow {
+  font-size: 12px; color: #8B92A8;
+}
+.jp-conv-out {
+  min-width: 90px;
+  text-align: right;
+  font-size: 14px; font-weight: 700;
+  color: #F59E0B;
+  font-variant-numeric: tabular-nums;
+}
+.jp-conv-foot {
+  margin-top: 6px;
+  font-size: 9px; color: #8B92A8;
+  text-align: right;
+}
+
+/* Inline currency conversion suffix on listing cards */
+.mkt-price-conv {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8B92A8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inline conversion under the Price row in listing detail modal */
+.ld-price-conv {
+  text-align: right;
+  font-size: 12px;
+  color: #8B92A8;
+  margin-top: -4px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-variant-numeric: tabular-nums;
+}
+.ld-fx-date {
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  margin-left: 4px;
+  text-transform: uppercase;
+}
 .prices-header {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 12px;
@@ -1726,7 +1845,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v24.2</div>
+          <div class="subtitle">Card Database · v24.5</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2155,6 +2274,100 @@ function formatPrice(price, currency) {
   return `${cur.symbol}${noDecimal ? '' : ' '}${formatted}`;
 }
 
+// v24.4: Build a yuyu-tei.jp search URL for a given card ID.
+// JP collectors check yuyu-tei for current JPY prices (the SEA reference for
+// One Piece TCG). We don't scrape — we just deep-link the user to yuyu-tei's
+// search results filtered to this card. Their search treats the base card
+// number well, so parallels (`OP05-119_p1`) and reprints all show up together.
+function yuyuteiSearchUrl(cardId) {
+  if (!cardId) return null;
+  // Strip parallel/reprint suffixes like `_p1`, `_p2`, `_r1`, `_jp1`.
+  // yuyu-tei groups variants by base card number, so searching the base
+  // returns all printings (base + parallels + alts).
+  const baseId = cardId.replace(/_[a-z]+\d*$/i, '');
+  // yuyu-tei's search endpoint accepts `search_word` query param. Card IDs
+  // are pure ASCII so encodeURIComponent is enough.
+  return `https://yuyu-tei.jp/sell/opc/s/search?search_word=${encodeURIComponent(baseId)}`;
+}
+
+// ===== v24.5: Currency conversion (Frankfurter API) =====
+// We cache exchange rates in localStorage for 24h so we only hit the network
+// once per day. All conversions in the app share one base table (USD-based),
+// computed once, then re-used. No API key required, no usage limits.
+const FX_CACHE_KEY = 'opdex_fx_rates_v1';
+const FX_CACHE_TTL_MS = 24 * 60 * 60 * 1000;  // 24 hours
+// Currencies we care about for conversion. JPY first since that's the main use
+// case (yuyu-tei reference prices). Frankfurter supports all of these.
+const FX_TARGETS = ['JPY', 'MYR', 'SGD', 'THB', 'IDR', 'PHP', 'VND', 'USD', 'CNY'];
+let fxRates = null;        // { base: 'USD', rates: { MYR: 4.73, JPY: 157.2, ... }, date: 'YYYY-MM-DD', fetchedAt: ms }
+let fxFetchInflight = null;
+
+function loadFxFromCache() {
+  try {
+    const raw = localStorage.getItem(FX_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.fetchedAt || Date.now() - parsed.fetchedAt > FX_CACHE_TTL_MS) return null;
+    return parsed;
+  } catch { return null; }
+}
+function saveFxToCache(data) {
+  try { localStorage.setItem(FX_CACHE_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+}
+
+// Fetch latest rates from Frankfurter. Idempotent — if a fetch is already in
+// flight or we have fresh cache, return that.
+async function ensureFxRates() {
+  if (fxRates) return fxRates;
+  const cached = loadFxFromCache();
+  if (cached) { fxRates = cached; return fxRates; }
+  if (fxFetchInflight) return fxFetchInflight;
+
+  fxFetchInflight = (async () => {
+    try {
+      const url = `https://api.frankfurter.dev/v2/rates?base=USD&quotes=${FX_TARGETS.filter(c => c !== 'USD').join(',')}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Frankfurter HTTP ' + res.status);
+      const data = await res.json();
+      const out = {
+        base: 'USD',
+        rates: { USD: 1, ...(data.rates || {}) },
+        date: data.date || null,
+        fetchedAt: Date.now(),
+      };
+      fxRates = out;
+      saveFxToCache(out);
+      window._cp('fx-rates: loaded date=' + out.date);
+      return out;
+    } catch (e) {
+      window._cp('fx-rates-FAIL: ' + (e.message || 'unknown'));
+      return null;
+    } finally {
+      fxFetchInflight = null;
+    }
+  })();
+  return fxFetchInflight;
+}
+
+// Convert amount from one currency to another using cached rates.
+// Returns null if rates unavailable or currency unsupported.
+function convertCurrency(amount, fromCurrency, toCurrency) {
+  if (amount === null || amount === undefined || amount === '') return null;
+  if (!fxRates?.rates) return null;
+  if (fromCurrency === toCurrency) return Number(amount);
+  const fromRate = fxRates.rates[fromCurrency];
+  const toRate = fxRates.rates[toCurrency];
+  if (!fromRate || !toRate) return null;
+  // Both rates are vs USD base. To convert: amount / fromRate = USD, then * toRate
+  return (Number(amount) / fromRate) * toRate;
+}
+
+// What's the user's preferred display currency? Mirrors the existing default
+// rule used by listings — based on country_code, falling back to USD.
+function preferredCurrency() {
+  return CURRENCY_BY_COUNTRY[currentProfile?.country_code] || 'USD';
+}
+
 // Map from list name to the in-memory state + table name + cloud key.
 // Lets us write one set of functions that work on any list.
 function getListState(listName) {
@@ -2394,6 +2607,10 @@ if (sbClient) {
     }
   } catch (e) { /* ignore */ }
 }
+
+// v24.5: Pre-warm FX rates for currency conversion. Fire-and-forget — if
+// it fails or is slow, conversions just don't display until rates arrive.
+ensureFxRates().catch(() => {});
 
 let currentUser = null;       // Supabase user object when signed in
 let syncing = false;          // true while a cloud op is in flight
@@ -3870,8 +4087,21 @@ function renderListingCard(listing) {
     || CURRENCY_BY_COUNTRY[seller.country_code]
     || 'USD';
   const priceStr = formatPrice(listing.price, displayCurrency);
+  // v24.5: Show inline conversion to user's preferred currency when different.
+  // Subtle grey suffix — never replaces the seller's asking price.
+  let priceConvHtml = '';
+  if (listing.price != null && currentUser) {
+    const pref = preferredCurrency();
+    if (pref !== displayCurrency) {
+      const converted = convertCurrency(listing.price, displayCurrency, pref);
+      const convStr = converted != null ? formatPrice(converted, pref) : null;
+      if (convStr) {
+        priceConvHtml = `<span class="mkt-price-conv">≈ ${escapeHtml(convStr)}</span>`;
+      }
+    }
+  }
   const priceBlock = priceStr
-    ? `<div class="mkt-asking-price">${escapeHtml(priceStr)}</div>`
+    ? `<div class="mkt-asking-price">${escapeHtml(priceStr)}${priceConvHtml}</div>`
     : '<div class="mkt-asking-price unset">Price: contact seller</div>';
   const conditionBadge = condLabel
     ? `<span class="mkt-cond-badge cond-${condition}">${condLabel}</span>`
@@ -4442,11 +4672,13 @@ function openModal(idx) {
     ${card.ability ? `<div class="ability-box"><div class="ability-lbl" style="color:${accent}">Ability</div><div class="ability-text">${card.ability}</div></div>` : ''}
     <div id="collection-controls-wrap">${renderCollectionControls(card)}</div>
     <div id="modal-marketplace-wrap">${renderModalMarketplace(card)}</div>
+    ${renderJpPricePanel(card)}
     ${renderPrices(card)}
   `;
   document.getElementById('modal').classList.add('open');
   wireCollectionControls(card);
   wireModalMarketplace(card);
+  wireJpConverter();
 
   // === Detail-load fix: thumbnail showed instantly above.
   // Now silently preload the high-res and swap when ready.
@@ -4823,6 +5055,81 @@ function wireCollectionControls(card) {
 let listingDraftTimer = null;
 
 
+// v24.4: Quick deep-link to yuyu-tei for live JP pricing.
+// SEA collectors of the JP version reference yuyu-tei for current prices.
+// We don't fetch or scrape — we just open yuyu-tei's search filtered to this
+// card in the user's browser. They see the live JPY price directly.
+function renderJpPricePanel(card) {
+  const url = yuyuteiSearchUrl(card.id);
+  if (!url) return '';
+  const pref = preferredCurrency();
+  // Show the converter only when preferred currency isn't JPY itself
+  const showConverter = pref !== 'JPY';
+  const rateDateLine = fxRates?.date ? `Rates ${fxRates.date} · daily` : 'Live rates loading…';
+  const cardIdAttr = escapeHtml(card.id);
+  return `
+    <div class="jp-price-panel">
+      <div class="jp-price-header">
+        <span class="jp-price-flag">🇯🇵</span>
+        <span class="jp-price-title">JP Market Price</span>
+        <span class="jp-price-source">via yuyu-tei</span>
+      </div>
+      <div class="jp-price-sub">Check the current JPY market price from yuyu-tei — the reference site for JP One Piece collectors.</div>
+      <a class="jp-price-btn" href="${url}" target="_blank" rel="noopener noreferrer">
+        Open on yuyu-tei
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;margin-left:6px;vertical-align:middle">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </a>
+      ${showConverter ? `
+        <div class="jp-conv">
+          <div class="jp-conv-label">Quick convert from yuyu-tei price</div>
+          <div class="jp-conv-row">
+            <span class="jp-conv-prefix">¥</span>
+            <input class="jp-conv-input" type="number" min="0" step="1" inputmode="numeric"
+                   placeholder="0" data-jp-input data-card="${cardIdAttr}" />
+            <span class="jp-conv-arrow">→</span>
+            <span class="jp-conv-out" data-jp-output data-card="${cardIdAttr}">—</span>
+          </div>
+          <div class="jp-conv-foot">${escapeHtml(rateDateLine)}</div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// v24.5: Wire the inline JPY→preferred-currency converter in the JP price panel.
+// Idempotent — safe to call even if the panel isn't present in the DOM.
+function wireJpConverter() {
+  const inputs = document.querySelectorAll('[data-jp-input]');
+  inputs.forEach(inp => {
+    const cardId = inp.dataset.card;
+    const out = document.querySelector(`[data-jp-output][data-card="${cardId}"]`);
+    if (!out) return;
+    const recompute = () => {
+      const v = inp.value;
+      if (v === '' || v === null) { out.textContent = '—'; return; }
+      const pref = preferredCurrency();
+      const converted = convertCurrency(Number(v), 'JPY', pref);
+      if (converted == null) {
+        // Rates not loaded yet — try to fetch and re-render on success
+        out.textContent = 'loading…';
+        ensureFxRates().then(() => {
+          const c2 = convertCurrency(Number(v), 'JPY', pref);
+          if (c2 != null) out.textContent = formatPrice(c2, pref);
+          else out.textContent = 'unavailable';
+        });
+        return;
+      }
+      out.textContent = formatPrice(converted, pref);
+    };
+    inp.addEventListener('input', recompute);
+    inp.addEventListener('click', e => e.stopPropagation());
+  });
+}
+
 function renderPrices(card) {
   const priceData = window._prices ? window._prices[card.id] : null;
 
@@ -4931,7 +5238,7 @@ function openListingDetail(listing) {
   const priceStr = formatPrice(listing.price, displayCurrency);
   const condLabel = listing.condition ? CONDITION_LABEL[listing.condition] : null;
 
-  const cardImg = card ? proxyImage(card._rawImage, 300) : '';
+  const cardImg = card ? proxyImage(card._rawImage, 240) : '';
   const cardName = card ? card.name : listing.card_id;
 
   // Pull a few card fields for the metadata strip (read-only)
@@ -4947,6 +5254,19 @@ function openListingDetail(listing) {
   const contactBlock = seller.contact_method
     ? `<button class="ld-contact-btn" data-contact="${escapeHtml(seller.contact_method)}">Contact seller</button>`
     : '<div class="ld-no-contact">Seller has not set a contact method</div>';
+
+  // v24.5: Inline conversion to user's preferred currency (when different)
+  let ldPriceConv = '';
+  if (listing.price != null && currentUser) {
+    const pref = preferredCurrency();
+    if (pref !== displayCurrency) {
+      const converted = convertCurrency(listing.price, displayCurrency, pref);
+      const convStr = converted != null ? formatPrice(converted, pref) : null;
+      if (convStr) {
+        ldPriceConv = `<div class="ld-price-conv">≈ ${escapeHtml(convStr)} <span class="ld-fx-date">${fxRates?.date ? `· rate ${fxRates.date}` : ''}</span></div>`;
+      }
+    }
+  }
 
   body.innerHTML = `
     ${cardImg ? `<div class="modal-image-wrap"><img src="${cardImg}" alt="" class="modal-image" /></div>` : ''}
@@ -4964,6 +5284,7 @@ function openListingDetail(listing) {
         <span class="ld-row-label">Price</span>
         <span class="ld-price">${priceStr ? escapeHtml(priceStr) : 'Contact seller'}</span>
       </div>
+      ${ldPriceConv}
       <div class="ld-row">
         <span class="ld-row-label">Quantity</span>
         <span class="ld-qty">×${listing.qty}</span>
@@ -4986,6 +5307,8 @@ function openListingDetail(listing) {
       </div>
     </div>
 
+    ${renderJpPricePanel({ id: listing.card_id })}
+
     <div class="ld-contact-wrap">${contactBlock}</div>
 
     ${meta}
@@ -5002,6 +5325,7 @@ function openListingDetail(listing) {
     if (url) window.open(url, '_blank', 'noopener');
     else if (navigator.clipboard) navigator.clipboard.writeText(contact).then(() => showToast('Contact copied: ' + contact));
   });
+  wireJpConverter();
 }
 
 // ===== Android back button handling =====
