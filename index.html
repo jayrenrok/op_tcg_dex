@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v25.2 -->
+<!-- build: v25.1 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -2065,7 +2065,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v25.2</div>
+          <div class="subtitle">Card Database · v25.1</div>
         </div>
       </div>
       <div class="header-controls">
@@ -5524,27 +5524,9 @@ let listingDraftTimer = null;
 // v25.1: Helper — build a Limitless One Piece deep-link for a card.
 // Limitless uses direct card-ID URLs (no search needed). They aggregate
 // TCGPlayer (USD) and Cardmarket (EUR) prices into one page, plus a JP/EN
-// language toggle.
-//
-// v25.2: For parallel suffixes _pN, use Limitless's ?v=N variant URL — backtested
-// across multiple cards, the suffix-to-version mapping aligns (the image at
-// ?v=N shows file _pN_EN.webp). This deep-links to the SPECIFIC printing's
-// price, eliminating the ambiguity buyers hit before.
-//
-// For non-parallel suffixes (_r1 reprint, _jp1 JP-only variant), strip and
-// fall back to the base card page — Limitless doesn't track those separately
-// under ?v=, so showing the full printings table is the most honest fallback.
+// language toggle. For parallels like OP05-119_p1, strip suffix to match base.
 function limitlessCardUrl(cardId) {
   if (!cardId) return null;
-  // Match Bandai's parallel suffix: _p1, _p2, ... up to _p9 (Limitless's
-  // ?v= parameter follows the same 1-indexed numbering)
-  const parallelMatch = cardId.match(/^(.+)_p(\d+)$/i);
-  if (parallelMatch) {
-    const baseId = parallelMatch[1];
-    const versionN = parallelMatch[2];
-    return `https://onepiece.limitlesstcg.com/cards/${encodeURIComponent(baseId)}?v=${versionN}`;
-  }
-  // Non-parallel suffix (reprint, JP-only, etc.) → strip suffix, no ?v=
   const baseId = cardId.replace(/_[a-z]+\d*$/i, '');
   return `https://onepiece.limitlesstcg.com/cards/${encodeURIComponent(baseId)}`;
 }
