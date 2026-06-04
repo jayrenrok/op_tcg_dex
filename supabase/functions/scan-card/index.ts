@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { GoogleGenAI } from "https://esm.sh/@google/genai";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,39 +21,34 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get("GEMINI_API_KEY")!;
-    const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `You are an expert One Piece Trading Card Game identifier. Analyze this card image and extract the following information. Return ONLY a valid JSON object with no markdown, no explanation, just raw JSON.
+{"id":"card set ID like OP09-118","name":"English card name","name_jp":"Japanese name if visible","type":"CHARACTER or LEADER or EVENT or STAGE","color":"Red/Blue/Green/Yellow/Purple/Black/Multi","rarity":"C/UC/R/SR/SEC/L","cost":null,"power":null,"ability_summary":"brief effect summary","confidence":"high/medium/low","notes":"special variants like Alternate Art, Parallel, Foil"}
+Make your best guess if unsure. Always include confidence.`;
 
-{
-  "id": "card set ID like OP09-118 or ST01-001",
-  "name": "English card name",
-  "name_jp": "Japanese card name if visible",
-  "type": "CHARACTER or LEADER or EVENT or STAGE",
-  "color": "Red/Blue/Green/Yellow/Purple/Black/Multi",
-  "rarity": "C/UC/R/SR/SEC/L or with variant like SEC (Alternate Art)",
-  "cost": null,
-  "power": null,
-  "counter": null,
-  "ability_summary": "brief summary of the card effect in English",
-  "confidence": "high/medium/low",
-  "notes": "any special variants like Parallel, Alternate Art, Foil, etc"
-}
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-If you cannot read the card ID clearly, make your best guess based on the artwork and text visible. Always include confidence level.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: [{
-        role: "user",
-        parts: [
-          { text: prompt },
-          { inlineData: { mimeType: mime_type, data: image_base64 } },
-        ],
-      }],
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type, data: image_base64 } },
+          ],
+        }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 512 },
+      }),
     });
 
-    const rawText = response.text ?? "";
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error?.message || `HTTP ${res.status}`);
+    }
+
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const clean = rawText.replace(/```json|```/g, "").trim();
     const card = JSON.parse(clean);
 
