@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v25.1 -->
+<!-- build: v25.2 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -2065,7 +2065,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v25.1</div>
+          <div class="subtitle">Card Database · v25.2</div>
         </div>
       </div>
       <div class="header-controls">
@@ -4480,18 +4480,31 @@ function renderMarketplaceListings() {
 
   wrap.innerHTML = filtered.map(l => renderListingCard(l)).join('');
 
-  // Wire contact buttons
+  // v25.2: Wire contact buttons with pre-filled WhatsApp message describing
+  // the listing. We use the row index to map the button back to its listing
+  // (same pattern used by the row click handler below). Telegram URLs don't
+  // get the pre-fill — t.me/ deep-links don't support it reliably.
   wrap.querySelectorAll('.mkt-contact-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const contact = btn.dataset.contact || '';
       if (!contact) return;
-      // Try to detect a WhatsApp / Telegram link, otherwise just copy.
-      const url = contactToUrl(contact);
+      // Find the parent listing row's index to recover the listing object
+      const row = btn.closest('.mkt-listing');
+      const allRows = Array.from(wrap.querySelectorAll('.mkt-listing'));
+      const idx = allRows.indexOf(row);
+      const listing = (idx >= 0) ? filtered[idx] : null;
+      const messageText = listing ? buildContactMessage(listing) : '';
+      const url = contactToUrl(contact, messageText);
       if (url) {
         window.open(url, '_blank', 'noopener');
       } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(contact).then(() => showToast('Contact copied: ' + contact));
+        // Copy fallback: include the pre-filled message so the user can paste
+        // it after they reach the seller's chat manually
+        const clipText = messageText
+          ? `${contact}\n\n${messageText}`
+          : contact;
+        navigator.clipboard.writeText(clipText).then(() => showToast('Contact + message copied'));
       }
     });
   });
@@ -4584,25 +4597,63 @@ function renderListingCard(listing) {
 }
 
 // Heuristics to turn a contact string into a deep-link if possible.
-// Heuristics to turn a contact string into a deep-link if possible.
-function contactToUrl(contact) {
+// v25.2: optional `messageText` param adds a pre-filled message to WhatsApp
+// URLs. Telegram and Discord don't support reliable pre-fill from a t.me/
+// link, so the message is ignored for those — the user will type or paste
+// the listing details themselves.
+function contactToUrl(contact, messageText) {
   const c = (contact || '').trim();
+  const textParam = messageText ? `?text=${encodeURIComponent(messageText)}` : '';
   // Phone-like → WhatsApp
   const phoneMatch = c.match(/(\+?\d[\d \-]{6,})/);
   if (/whats?app/i.test(c) && phoneMatch) {
     const digits = phoneMatch[1].replace(/\D+/g, '');
-    return `https://wa.me/${digits}`;
+    return `https://wa.me/${digits}${textParam}`;
   }
-  // Telegram handle
+  // Telegram handle — no pre-fill support on t.me/<handle> deep-links
   const tg = c.match(/telegram[^@]*@?([a-z0-9_]{4,})/i);
   if (tg) return `https://t.me/${tg[1]}`;
   // Discord — no deep-link, fall through to copy
   // Plain WhatsApp number without keyword
   if (phoneMatch && !/discord/i.test(c)) {
     const digits = phoneMatch[1].replace(/\D+/g, '');
-    if (digits.length >= 8) return `https://wa.me/${digits}`;
+    if (digits.length >= 8) return `https://wa.me/${digits}${textParam}`;
   }
   return null;
+}
+
+// v25.2: Build a pre-filled contact message describing a specific listing.
+// Used by the marketplace row and listing-detail contact buttons so the buyer
+// doesn't have to type the card details themselves. Kept short and
+// conversational — buyers can edit before sending in WhatsApp.
+function buildContactMessage(listing) {
+  if (!listing) return '';
+  const card = cardById[listing.card_id];
+  const cardName = card?.name || listing.card_id;
+  const seller = listing.seller || {};
+  const sellerName = seller.display_name || '';
+  const langLabel = (listing.lang || 'en').toUpperCase();
+  const condLabels = {
+    mint: 'Mint',
+    near_mint: 'Near Mint',
+    lightly_played: 'Lightly Played',
+    damaged: 'Damaged',
+  };
+  const condition = condLabels[listing.condition] || '';
+  const priceStr = (listing.price != null)
+    ? formatPrice(listing.price, listing.currency || 'USD')
+    : '';
+
+  // Greeting uses the seller's name if we know it; otherwise generic.
+  const greeting = sellerName ? `Hi ${sellerName},` : 'Hi,';
+
+  // Build the body line. Mention condition + price only if they're set.
+  const details = [];
+  if (condition) details.push(condition);
+  if (priceStr) details.push(priceStr);
+  const detailsStr = details.length ? ` (${details.join(', ')})` : '';
+
+  return `${greeting} I'm interested in your ${cardName} [${listing.card_id}] ${langLabel}${detailsStr} listed on One Piece DEX. Is it still available?`;
 }
 
 // Card detail modal: cross-link to marketplace.
@@ -5982,12 +6033,17 @@ function openListingDetail(listing) {
   history.pushState({ type: 'modal' }, '');
 
   // Wire the Contact button inside the listing detail
+  // v25.2: include a pre-filled WhatsApp message about this specific listing
   body.querySelector('.ld-contact-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
     const contact = e.currentTarget.dataset.contact || '';
-    const url = contactToUrl(contact);
+    const messageText = buildContactMessage(listing);
+    const url = contactToUrl(contact, messageText);
     if (url) window.open(url, '_blank', 'noopener');
-    else if (navigator.clipboard) navigator.clipboard.writeText(contact).then(() => showToast('Contact copied: ' + contact));
+    else if (navigator.clipboard) {
+      const clipText = messageText ? `${contact}\n\n${messageText}` : contact;
+      navigator.clipboard.writeText(clipText).then(() => showToast('Contact + message copied'));
+    }
   });
   // v24.8: Tap seller name to view all their listings
   body.querySelector('.ld-seller-link')?.addEventListener('click', (e) => {
