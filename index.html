@@ -3321,35 +3321,9 @@ async function onAuthChange(event, session) {
     if (results[0].status === 'rejected') window._cp('authchange: WANTS load FAILED ' + (results[0].reason?.message || ''));
     if (results[1].status === 'rejected') window._cp('authchange: LISTINGS load FAILED ' + (results[1].reason?.message || ''));
     if (results[2].status === 'rejected') window._cp('authchange: PROFILE load FAILED ' + (results[2].reason?.message || ''));
-    // v25.3: Profile can return null on page reload if the session token hasn't
-    // fully re-established before the query fires (race condition on INITIAL_SESSION).
-    // Log it visibly, then retry once after a short delay.
-    if (results[2].status === 'fulfilled' && results[2].value === null) {
-      window._cp('authchange: PROFILE returned null — will retry in 1.5s');
-    }
 
     window._cp(`authchange: loaded coll=${Object.keys(collection).length} wants=${Object.keys(wants).length} listings=${Object.keys(listings).length}`);
     cloudSyncState = 'loaded';
-
-    // v25.3: If profile came back null (race condition on reload), retry once.
-    // This fixes the "Anonymous / Not set" display after a page refresh while
-    // already signed in. Only retries when profile is genuinely missing — not
-    // when the user has never set up a profile (new account = null is correct,
-    // but backfillDisplayName below will create one in that case anyway).
-    if (!currentProfile && currentUser) {
-      await new Promise(r => setTimeout(r, 1500));
-      // Guard: user may have signed out during the wait
-      if (currentUser) {
-        window._cp('authchange: retrying profile load...');
-        const retried = await loadProfile();
-        if (retried) {
-          currentProfile = retried;
-          window._cp('authchange: profile retry succeeded');
-        } else {
-          window._cp('authchange: profile retry also returned null (new account or RLS block)');
-        }
-      }
-    }
 
     // v24.9: Auto-populate display_name from Google metadata if profile has
     // none yet. Public marketplace listings need a name — without this, every
@@ -3444,6 +3418,49 @@ function showSignInPanel() {
 
 function showAccountPanel() {
   if (!currentUser) { showSignInPanel(); return; }
+
+  // v25.3: If cloud data is still loading (e.g. user taps account button
+  // immediately after a page refresh), show a spinner instead of rendering
+  // with null profile data. Poll every 200ms and re-render once loaded.
+  if (cloudSyncState === 'loading') {
+    const meta = currentUser.user_metadata || {};
+    const name = meta.full_name || meta.name || currentUser.email || 'User';
+    const email = currentUser.email || '';
+    const avatar = meta.avatar_url || meta.picture || '';
+    const initials = name.split(' ').map(s => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    document.getElementById('auth-modal-content').innerHTML = `
+      <div class="user-panel">
+        <div class="profile-row">
+          <div class="avatar">
+            ${avatar ? `<img src="${avatar}" alt="" onerror="this.style.display='none'" />` : initials}
+          </div>
+          <div class="user-info">
+            <div class="user-name">${escapeHtml(name)}</div>
+            <div class="user-email">${escapeHtml(email)}</div>
+          </div>
+        </div>
+        <div style="text-align:center;padding:32px 0 24px;opacity:0.5;font-size:14px;letter-spacing:0.05em;">
+          Loading your profile…
+        </div>
+        <button class="auth-cancel-btn" id="auth-cancel">Close</button>
+      </div>
+    `;
+    document.getElementById('auth-cancel').addEventListener('click', closeAuthModal);
+    // Poll until loading finishes, then re-render with real data
+    const poll = setInterval(() => {
+      if (cloudSyncState !== 'loading') {
+        clearInterval(poll);
+        // Only re-render if the modal is still showing the loading state
+        // (user may have navigated away or closed it)
+        const backdrop = document.getElementById('auth-modal-backdrop');
+        if (backdrop && backdrop.classList.contains('open')) {
+          showAccountPanel();
+        }
+      }
+    }, 200);
+    return;
+  }
+
   const meta = currentUser.user_metadata || {};
   const name = meta.full_name || meta.name || currentUser.email || 'User';
   const email = currentUser.email || '';
