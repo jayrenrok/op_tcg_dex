@@ -3275,6 +3275,10 @@ async function onAuthChange(event, session) {
   // Otherwise a slow cloud load can leave the button gray while we wait.
   currentUser = session.user;
   cloudSyncState = 'loading';
+  // v25.3: Mark that the auth listener has fired with a confirmed live session.
+  // showAccountPanel() uses this to distinguish a real post-auth load (show spinner)
+  // from a cold-open pre-load where currentUser may already be set from cache.
+  window._authChangeReceived = true;
   updateAccountButton();
   // Re-render any view that might show loading state now
   if (currentView === 'collection') renderCollectionView();
@@ -3419,10 +3423,12 @@ function showSignInPanel() {
 function showAccountPanel() {
   if (!currentUser) { showSignInPanel(); return; }
 
-  // v25.3: If cloud data is still loading (e.g. user taps account button
-  // immediately after a page refresh), show a spinner instead of rendering
-  // with null profile data. Poll every 200ms and re-render once loaded.
-  if (cloudSyncState === 'loading') {
+  // v25.3: If cloud data is still loading AND we've already confirmed a live
+  // session (authChangeReceived = true), show a spinner instead of rendering
+  // with null profile data. We check authChangeReceived to avoid showing the
+  // spinner on cold open — cloudSyncState can be 'loading' from the cached-
+  // session pre-set before the auth listener fires (lines ~2949-2963).
+  if (cloudSyncState === 'loading' && window._authChangeReceived) {
     const meta = currentUser.user_metadata || {};
     const name = meta.full_name || meta.name || currentUser.email || 'User';
     const email = currentUser.email || '';
