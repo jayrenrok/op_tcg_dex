@@ -3284,27 +3284,22 @@ async function onAuthChange(event, session) {
   // Re-render any view that might show loading state now
   if (currentView === 'collection') renderCollectionView();
   if (currentView === 'marketplace') renderMarketplace();
-  window._cp('authchange: currentUser set, loading data');
+  window._cp('authchange: event=' + event + ' currentUser set, loading data');
 
   try {
-    // v25.4: On INITIAL_SESSION (page refresh), the cached token may be expired.
-    // Supabase refreshes it silently, but queries fired before the refresh
-    // completes get rejected by RLS and return empty data — causing the
-    // "collection 0, profile null" bug. We call getSession() first to ensure
-    // the token is valid before firing any queries. getSession() waits for
-    // the refresh to complete if one is in progress.
-    if (event === 'INITIAL_SESSION' || event === 'INITIAL') {
-      window._cp('authchange: waiting for valid session token...');
-      const { data: sessionData, error: sessionError } = await sbClient.auth.getSession();
-      if (sessionError || !sessionData?.session) {
-        window._cp('authchange: session invalid after refresh — signing out');
-        await sbClient.auth.signOut();
-        return;
-      }
-      // Update currentUser with the freshly-refreshed session data
-      currentUser = sessionData.session.user;
-      window._cp('authchange: session confirmed valid, proceeding with data load');
+    // v25.4: Always verify session is valid before firing queries.
+    // On page refresh the cached token may be expired and Supabase needs to
+    // silently refresh it. getSession() waits for that refresh to complete.
+    window._cp('authchange: verifying session token...');
+    const { data: sessionData, error: sessionError } = await sbClient.auth.getSession();
+    if (sessionError || !sessionData?.session) {
+      window._cp('authchange: session invalid — signing out');
+      await sbClient.auth.signOut();
+      return;
     }
+    // Always use the freshly-verified session user
+    currentUser = sessionData.session.user;
+    window._cp('authchange: session valid, token expires=' + new Date(sessionData.session.expires_at * 1000).toISOString());
 
     // Load collections first (special case — supports local→cloud import).
     const localEntries = Object.keys(collection).length;
