@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v25.8 -->
+<!-- build: v25.9 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -2065,7 +2065,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v25.8</div>
+          <div class="subtitle">Card Database · v25.9</div>
         </div>
       </div>
       <div class="header-controls">
@@ -3282,18 +3282,24 @@ async function onAuthChange(event, session) {
   updateAccountButton();
   if (currentView === 'collection') renderCollectionView();
   if (currentView === 'marketplace') renderMarketplace();
-  window._cp('authchange: currentUser set, loading data');
+  window._cp('authchange: currentUser set, queuing data load');
 
-  // v25.8: Recreate Supabase client to clear stale fetch state from page reload.
-  // Without this, queries hang indefinitely after refresh.
-  try {
-    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-    });
-    window._cp('authchange: fresh sbClient ok');
-  } catch (e) {
-    window._cp('authchange: sbClient recreate failed: ' + e.message);
-  }
+  // v25.9: FIX for Supabase JS deadlock bug.
+  // Any await sbClient call made inside onAuthStateChange causes a permanent
+  // hang — the callback holds an internal SDK lock that the query waits on.
+  // Fix: exit the callback immediately via queueMicrotask, then load data
+  // outside the callback where the lock is no longer held.
+  // Ref: https://supabase.com/docs/guides/troubleshooting/why-is-my-supabase-api-call-not-returning-PGzXw0
+  queueMicrotask(() => loadUserData(session.user, event));
+}
+
+// Loads all user data outside the onAuthStateChange callback to avoid the
+// Supabase JS deadlock bug (see above).
+async function loadUserData(user, event) {
+  if (!user || !sbClient) return;
+  // Guard: if another load already completed for this user, skip
+  if (cloudSyncState === 'loaded' && currentUser?.id === user.id) return;
+  window._cp('loadUserData: start for ' + user.email);
 
   try {
     // Load collections first (special case — supports local→cloud import).
