@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v25.5 -->
+<!-- build: v25.6 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -2065,7 +2065,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v25.5</div>
+          <div class="subtitle">Card Database · v25.6</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2985,10 +2985,16 @@ async function cloudLoadList(tableName) {
   const cols = tableName === 'listings'
     ? 'card_id, qty, lang, added_at, condition, price, currency'
     : 'card_id, qty, lang, added_at';
-  const { data, error } = await sbClient
+  // v25.5: Wrap individual query in a 10s timeout. On page reload the Supabase
+  // client can hang indefinitely on the first query — this unblocks the load.
+  const queryPromise = sbClient
     .from(tableName)
     .select(cols)
     .eq('user_id', currentUser.id);
+  const timeoutPromise = new Promise(resolve =>
+    setTimeout(() => resolve({ data: null, error: new Error('query timeout after 10s') }), 10000)
+  );
+  const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
   if (error) {
     console.error(`cloudLoadList(${tableName}) error:`, error);
     window._cp('cloud-load-FAIL: ' + tableName + ' ' + (error.message || 'unknown'));
@@ -3290,7 +3296,15 @@ async function onAuthChange(event, session) {
 
     // Load collections first (special case — supports local→cloud import).
     const localEntries = Object.keys(collection).length;
-    const cloudData = await cloudLoadList('collections');
+    let cloudData = await cloudLoadList('collections');
+    // v25.5: If collection load timed out or failed (common on page reload due to
+    // Supabase client initialization race), wait 2s and retry once.
+    if (cloudData === null) {
+      window._cp('authchange: collection load failed, retrying in 2s...');
+      await new Promise(r => setTimeout(r, 2000));
+      cloudData = await cloudLoadList('collections');
+      window._cp('authchange: retry result=' + (cloudData === null ? 'null' : Object.keys(cloudData).length + ' entries'));
+    }
     const cloudEntries = cloudData ? Object.keys(cloudData).length : 0;
 
     if (localEntries > 0 && cloudEntries === 0) {
