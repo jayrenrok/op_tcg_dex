@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v25.7 -->
+<!-- build: v25.8 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -2065,7 +2065,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v25.7</div>
+          <div class="subtitle">Card Database · v25.8</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2119,7 +2119,6 @@ select.listing-input {
   <div class="count"><span class="big" id="filter-count">0</span>/ <span id="total-count">0</span> cards</div>
   <div class="note" id="data-note">tap a card for full detail</div>
 </div>
-<!-- v25.3: Multi-card search badge -->
 <div id="multi-search-banner" style="display:none;align-items:center;gap:8px;padding:6px 16px 0;">
   <span id="multi-search-label" style="font-size:12px;color:#F59E0B;font-family:monospace;letter-spacing:0.04em;"></span>
   <button onclick="clearFilters()" style="background:none;border:1px solid rgba(245,158,11,0.4);color:#F59E0B;border-radius:99px;padding:1px 8px;font-size:11px;cursor:pointer;">✕ clear</button>
@@ -2985,16 +2984,10 @@ async function cloudLoadList(tableName) {
   const cols = tableName === 'listings'
     ? 'card_id, qty, lang, added_at, condition, price, currency'
     : 'card_id, qty, lang, added_at';
-  // v25.5: Wrap individual query in a 10s timeout. On page reload the Supabase
-  // client can hang indefinitely on the first query — this unblocks the load.
-  const queryPromise = sbClient
+  const { data, error } = await sbClient
     .from(tableName)
     .select(cols)
     .eq('user_id', currentUser.id);
-  const timeoutPromise = new Promise(resolve =>
-    setTimeout(() => resolve({ data: null, error: new Error('query timeout after 10s') }), 10000)
-  );
-  const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
   if (error) {
     console.error(`cloudLoadList(${tableName}) error:`, error);
     window._cp('cloud-load-FAIL: ' + tableName + ' ' + (error.message || 'unknown'));
@@ -3273,59 +3266,39 @@ async function onAuthChange(event, session) {
 
   // === No-op cases ===
   if (!isSignedIn) return;  // already signed out, nothing to do
-
-  // v25.7: On page reload Supabase fires INITIAL_SESSION first (token may not
-  // be refreshed yet), then TOKEN_REFRESHED with a valid token. Queries fired
-  // on INITIAL_SESSION consistently time out. So on INITIAL_SESSION we set
-  // currentUser and show the UI immediately, but defer the data load until
-  // TOKEN_REFRESHED fires with a guaranteed valid token.
-  if (event === 'INITIAL_SESSION') {
+  if (isSignedIn && wasSignedIn && currentUser?.id === session.user.id) {
+    // Token refresh on already-signed-in user — no UI churn needed.
+    // Still refresh currentUser in case the token's metadata changed.
     currentUser = session.user;
-    cloudSyncState = 'loading';
-    updateAccountButton();
-    if (currentView === 'collection') renderCollectionView();
-    if (currentView === 'marketplace') renderMarketplace();
-    window._cp('authchange: INITIAL_SESSION — deferring data load until TOKEN_REFRESHED');
+    updateAccountButton();   // belt-and-suspenders: keep the dot green
     return;
   }
 
-  // TOKEN_REFRESHED after page reload — this is when the token is valid.
-  // Treat it as a sign-in and load all data.
-  if (event === 'TOKEN_REFRESHED' && wasSignedIn && currentUser?.id === session.user.id) {
-    currentUser = session.user;
-    window._cp('authchange: TOKEN_REFRESHED — loading data now');
-    // Fall through to the sign-in load path below
-  } else if (isSignedIn && wasSignedIn && currentUser?.id === session.user.id) {
-    // Any other token refresh on already-signed-in user — no UI churn needed.
-    currentUser = session.user;
-    updateAccountButton();
-    return;
-  }
-
-  // === Sign-in / data load event ===
+  // === Sign-in event ===
   // CRITICAL: set currentUser AND paint the UI immediately, BEFORE any await.
   // Otherwise a slow cloud load can leave the button gray while we wait.
   currentUser = session.user;
   cloudSyncState = 'loading';
   updateAccountButton();
-  // Re-render any view that might show loading state now
   if (currentView === 'collection') renderCollectionView();
   if (currentView === 'marketplace') renderMarketplace();
   window._cp('authchange: currentUser set, loading data');
 
+  // v25.8: Recreate Supabase client to clear stale fetch state from page reload.
+  // Without this, queries hang indefinitely after refresh.
   try {
+    sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+    window._cp('authchange: fresh sbClient ok');
+  } catch (e) {
+    window._cp('authchange: sbClient recreate failed: ' + e.message);
+  }
 
+  try {
     // Load collections first (special case — supports local→cloud import).
     const localEntries = Object.keys(collection).length;
-    let cloudData = await cloudLoadList('collections');
-    // v25.5: If collection load timed out or failed (common on page reload due to
-    // Supabase client initialization race), wait 2s and retry once.
-    if (cloudData === null) {
-      window._cp('authchange: collection load failed, retrying in 2s...');
-      await new Promise(r => setTimeout(r, 2000));
-      cloudData = await cloudLoadList('collections');
-      window._cp('authchange: retry result=' + (cloudData === null ? 'null' : Object.keys(cloudData).length + ' entries'));
-    }
+    const cloudData = await cloudLoadList('collections');
     const cloudEntries = cloudData ? Object.keys(cloudData).length : 0;
 
     if (localEntries > 0 && cloudEntries === 0) {
@@ -3348,23 +3321,12 @@ async function onAuthChange(event, session) {
     }
 
     // Load wants/listings/profile in parallel. Use allSettled so one failure
-    // doesn't kill the others. v25.4: wrap in a 15s timeout so a hanging
-    // Supabase query doesn't leave the user stuck on the loading spinner forever.
+    // doesn't kill the others.
     window._cp('authchange: about to load wants/listings/profile');
-    const loadTimeout = new Promise(resolve =>
-      setTimeout(() => resolve([
-        { status: 'rejected', reason: new Error('timeout') },
-        { status: 'rejected', reason: new Error('timeout') },
-        { status: 'rejected', reason: new Error('timeout') },
-      ]), 15000)
-    );
-    const results = await Promise.race([
-      Promise.allSettled([
-        cloudLoadList('wants'),
-        cloudLoadList('listings'),
-        loadProfile(),
-      ]),
-      loadTimeout,
+    const results = await Promise.allSettled([
+      cloudLoadList('wants'),
+      cloudLoadList('listings'),
+      loadProfile(),
     ]);
     wants = results[0].status === 'fulfilled' ? (results[0].value || {}) : {};
     listings = results[1].status === 'fulfilled' ? (results[1].value || {}) : {};
@@ -3383,18 +3345,11 @@ async function onAuthChange(event, session) {
     await backfillDisplayName();
 
     saveCollection();
-    updateAccountButton();   // refresh in case it got reset somehow
+    updateAccountButton();
     renderGrid();
     if (currentView === 'collection') renderCollectionView();
     if (currentView === 'marketplace') renderMarketplace();
-    // v25.4: If the user tapped the account button while data was still loading
-    // (e.g. immediately after a page refresh), re-render the panel now that we
-    // have real profile data. Check both the backdrop AND a flag set by
-    // showAccountPanel when it renders with incomplete data mid-load.
-    // Re-render the account panel if it was opened while data was loading.
-    // We check both the backdrop (panel still open) AND a flag set by
-    // showAccountPanel when it rendered mid-load — covers the case where
-    // the user opened and closed the panel before loading finished.
+    // v25.4: Re-render account panel if it was opened while data was loading
     const authBackdrop = document.getElementById('auth-modal-backdrop');
     const panelWasOpenedMidLoad = window._accountPanelNeedsRefresh;
     window._accountPanelNeedsRefresh = false;
@@ -3484,11 +3439,7 @@ function showSignInPanel() {
 
 function showAccountPanel() {
   if (!currentUser) { showSignInPanel(); return; }
-  // v25.4: If data is still loading when the panel opens, set a flag so the
-  // onAuthChange load-complete handler knows to re-render the panel.
-  if (cloudSyncState === 'loading') {
-    window._accountPanelNeedsRefresh = true;
-  }
+  if (cloudSyncState === 'loading') window._accountPanelNeedsRefresh = true;
   const meta = currentUser.user_metadata || {};
   const name = meta.full_name || meta.name || currentUser.email || 'User';
   const email = currentUser.email || '';
@@ -4991,8 +4942,7 @@ let activeRarities = [];
 function getFiltered() {
   const q = query.trim().toLowerCase();
 
-  // v25.3: Multi-card search — detect comma-separated card IDs.
-  // Accepts OP01-001, ST01-001, PRB01-001, P-001 formats + variants (_p1 etc.)
+  // v25.3: Multi-card search — comma-separated IDs, auto-expands variants
   const CARD_ID_RE = /^[a-z]{1,4}(\d{2})?-\d{3}(_[a-z0-9]+)?$/i;
   const CARD_ID_BASE_RE = /^[a-z]{1,4}(\d{2})?-\d{3}$/i;
   const multiTokens = q.split(',').map(t => t.trim()).filter(Boolean);
@@ -5004,14 +4954,12 @@ function getFiltered() {
     const seen = new Set();
     for (const token of tokens) {
       if (CARD_ID_BASE_RE.test(token)) {
-        // Auto-expand base ID to include all variants (_p1, _p2, _r1 etc.)
         const prefix = token + '_';
         const matches = cards.filter(c => c.id === token || c.id.startsWith(prefix));
         for (const c of matches) {
           if (!seen.has(c.id)) { seen.add(c.id); results.push(c); }
         }
       } else {
-        // Explicit variant — exact match only
         const c = cardById[token];
         if (c && !seen.has(c.id)) { seen.add(c.id); results.push(c); }
       }
@@ -5104,19 +5052,18 @@ function renderGrid() {
   document.getElementById('filter-count').textContent = filtered.length;
   document.getElementById('total-count').textContent = cards.length;
 
-  // v25.3: Show/hide multi-search banner
-  const CARD_ID_RE_BANNER = /^[a-z]{1,4}(\d{2})?-\d{3}(_[a-z0-9]+)?$/i;
-  const multiTokensBanner = query.trim().split(',').map(t => t.trim()).filter(Boolean);
-  const isMultiSearch = multiTokensBanner.length >= 2 && multiTokensBanner.filter(t => CARD_ID_RE_BANNER.test(t)).length >= 2;
+  // v25.3: Multi-search banner
+  const CARD_ID_RE_B = /^[a-z]{1,4}(\d{2})?-\d{3}(_[a-z0-9]+)?$/i;
+  const multiTok = query.trim().split(',').map(t => t.trim()).filter(Boolean);
+  const isMulti = multiTok.length >= 2 && multiTok.filter(t => CARD_ID_RE_B.test(t)).length >= 2;
   const banner = document.getElementById('multi-search-banner');
   if (banner) {
-    if (isMultiSearch) {
-      const inputCount = Math.min(multiTokensBanner.length, 10);
+    if (isMulti) {
+      const inputCount = Math.min(multiTok.length, 10);
       const found = filtered.length;
-      const capped = multiTokensBanner.length > 10;
       const hasVariants = found > inputCount;
       document.getElementById('multi-search-label').textContent =
-        `${found} card${found !== 1 ? 's' : ''} found${hasVariants ? ' (incl. variants)' : ''}${capped ? ' · capped at 10 IDs' : ''}`;
+        `${found} card${found !== 1 ? 's' : ''} found${hasVariants ? ' (incl. variants)' : ''}${multiTok.length > 10 ? ' · capped at 10 IDs' : ''}`;
       banner.style.display = 'flex';
     } else {
       banner.style.display = 'none';
@@ -6028,15 +5975,10 @@ function closeModal(e) {
   if (e && e.target !== e.currentTarget) return;
   const wasOpen = document.getElementById('modal').classList.contains('open');
   document.getElementById('modal').classList.remove('open');
-  // v24.1: clear any pending +/- changes when modal closes (they were never
-  // confirmed, so they're abandoned)
   pendingListChanges = {};
-  // v24.2: same for listing-details drafts — abandon unsaved edits
   listingDrafts = {};
-  // v25.3: Do NOT call history.back() here. Previously this caused a double-pop:
-  // backdrop click → history.back() → popstate fired → setView('sets') → wrong page.
-  // The popstate handler below is the single source of truth for back navigation.
-  // We just need to consume the modal history entry without triggering popstate side-effects.
+  // v25.3: Use replaceState instead of history.back() to avoid double-pop
+  // that was sending users to the main page on backdrop click.
   if (wasOpen && history.state?.type === 'modal') {
     history.replaceState({ type: 'background' }, '');
   }
