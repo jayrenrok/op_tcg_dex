@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v25.2 -->
+<!-- build: v25.3 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -2065,7 +2065,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v25.2</div>
+          <div class="subtitle">Card Database · v25.3</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2118,6 +2118,11 @@ select.listing-input {
 <div class="stats">
   <div class="count"><span class="big" id="filter-count">0</span>/ <span id="total-count">0</span> cards</div>
   <div class="note" id="data-note">tap a card for full detail</div>
+</div>
+<!-- v25.3: Multi-card search badge — shown when query is a comma-separated ID list -->
+<div id="multi-search-banner" style="display:none;align-items:center;gap:8px;padding:6px 16px 0;">
+  <span id="multi-search-label" style="font-size:12px;color:#F59E0B;font-family:monospace;letter-spacing:0.04em;"></span>
+  <button onclick="clearFilters()" style="background:none;border:1px solid rgba(245,158,11,0.4);color:#F59E0B;border-radius:99px;padding:1px 8px;font-size:11px;cursor:pointer;">✕ clear</button>
 </div>
 
 <main>
@@ -4919,6 +4924,21 @@ let activeRarities = [];
 
 function getFiltered() {
   const q = query.trim().toLowerCase();
+
+  // v25.3: Multi-card search — detect comma-separated card IDs (e.g. "OP01-001, OP04-002").
+  // Criteria: query contains a comma AND at least two tokens look like card IDs (XX##-###).
+  const CARD_ID_RE = /^[a-z]{1,3}\d{2}-\d{3}$/i;
+  const multiTokens = q.split(',').map(t => t.trim()).filter(Boolean);
+  const isMultiSearch = multiTokens.length >= 2 && multiTokens.filter(t => CARD_ID_RE.test(t)).length >= 2;
+
+  if (isMultiSearch) {
+    // Cap at 10 to keep results scannable
+    const ids = multiTokens.slice(0, 10).map(t => t.toUpperCase());
+    // Preserve the order the user typed them in
+    const results = ids.map(id => cardById[id]).filter(Boolean);
+    return results;
+  }
+
   let sourceCards;
 
   if (currentView === 'collection') {
@@ -5003,6 +5023,24 @@ function renderGrid() {
 
   document.getElementById('filter-count').textContent = filtered.length;
   document.getElementById('total-count').textContent = cards.length;
+
+  // v25.3: Show/hide multi-search banner
+  const CARD_ID_RE = /^[a-z]{1,3}\d{2}-\d{3}$/i;
+  const multiTokens = query.trim().split(',').map(t => t.trim()).filter(Boolean);
+  const isMultiSearch = multiTokens.length >= 2 && multiTokens.filter(t => CARD_ID_RE.test(t)).length >= 2;
+  const banner = document.getElementById('multi-search-banner');
+  if (banner) {
+    if (isMultiSearch) {
+      const ids = multiTokens.slice(0, 10);
+      const found = filtered.length;
+      const capped = multiTokens.length > 10;
+      document.getElementById('multi-search-label').textContent =
+        `${found} of ${ids.length} card${ids.length !== 1 ? 's' : ''} found${capped ? ' (capped at 10)' : ''}`;
+      banner.style.display = 'flex';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
 
   if (filtered.length === 0) {
     grid.innerHTML = '';
