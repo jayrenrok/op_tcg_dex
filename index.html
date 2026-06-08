@@ -4927,15 +4927,36 @@ function getFiltered() {
 
   // v25.3: Multi-card search — detect comma-separated card IDs (e.g. "OP01-001, OP04-002").
   // Criteria: query contains a comma AND at least two tokens look like card IDs (XX##-###).
-  const CARD_ID_RE = /^[a-z]{1,3}\d{2}-\d{3}$/i;
+  // v25.3b: Auto-expand each base ID to include all its variants (_p1, _p2, _r1 etc.)
+  // so users don't need to type suffixes — "OP01-001" returns base + all parallels.
+  const CARD_ID_RE = /^[a-z]{1,3}\d{2}-\d{3}(_[a-z0-9]+)?$/i;
+  const CARD_ID_BASE_RE = /^[a-z]{1,3}\d{2}-\d{3}$/i;
   const multiTokens = q.split(',').map(t => t.trim()).filter(Boolean);
   const isMultiSearch = multiTokens.length >= 2 && multiTokens.filter(t => CARD_ID_RE.test(t)).length >= 2;
 
   if (isMultiSearch) {
-    // Cap at 10 to keep results scannable
-    const ids = multiTokens.slice(0, 10).map(t => t.toUpperCase());
-    // Preserve the order the user typed them in
-    const results = ids.map(id => cardById[id]).filter(Boolean);
+    // Cap input to 10 base IDs
+    const tokens = multiTokens.slice(0, 10).map(t => t.toUpperCase());
+    const results = [];
+    const seen = new Set();
+    for (const token of tokens) {
+      const isBase = CARD_ID_BASE_RE.test(token);
+      if (isBase) {
+        // Auto-expand: find base card + all variants that start with this ID
+        // e.g. "OP01-001" also matches "OP01-001_p1", "OP01-001_p2" etc.
+        const prefix = token + '_';
+        const matches = cards.filter(c =>
+          c.id === token || c.id.startsWith(prefix)
+        );
+        for (const c of matches) {
+          if (!seen.has(c.id)) { seen.add(c.id); results.push(c); }
+        }
+      } else {
+        // Explicit variant typed (e.g. "OP01-001_p1") — exact match only
+        const c = cardById[token];
+        if (c && !seen.has(c.id)) { seen.add(c.id); results.push(c); }
+      }
+    }
     return results;
   }
 
@@ -5025,17 +5046,19 @@ function renderGrid() {
   document.getElementById('total-count').textContent = cards.length;
 
   // v25.3: Show/hide multi-search banner
-  const CARD_ID_RE = /^[a-z]{1,3}\d{2}-\d{3}$/i;
-  const multiTokens = query.trim().split(',').map(t => t.trim()).filter(Boolean);
-  const isMultiSearch = multiTokens.length >= 2 && multiTokens.filter(t => CARD_ID_RE.test(t)).length >= 2;
+  const CARD_ID_RE_BANNER = /^[a-z]{1,3}\d{2}-\d{3}(_[a-z0-9]+)?$/i;
+  const multiTokensBanner = query.trim().split(',').map(t => t.trim()).filter(Boolean);
+  const isMultiSearch = multiTokensBanner.length >= 2 && multiTokensBanner.filter(t => CARD_ID_RE_BANNER.test(t)).length >= 2;
   const banner = document.getElementById('multi-search-banner');
   if (banner) {
     if (isMultiSearch) {
-      const ids = multiTokens.slice(0, 10);
+      const inputCount = Math.min(multiTokensBanner.length, 10);
       const found = filtered.length;
-      const capped = multiTokens.length > 10;
+      const capped = multiTokensBanner.length > 10;
+      // "4 cards (incl. variants)" when variants were auto-expanded
+      const hasVariants = found > inputCount;
       document.getElementById('multi-search-label').textContent =
-        `${found} of ${ids.length} card${ids.length !== 1 ? 's' : ''} found${capped ? ' (capped at 10)' : ''}`;
+        `${found} card${found !== 1 ? 's' : ''} found${hasVariants ? ' (incl. variants)' : ''}${capped ? ' · capped at 10 IDs' : ''}`;
       banner.style.display = 'flex';
     } else {
       banner.style.display = 'none';
