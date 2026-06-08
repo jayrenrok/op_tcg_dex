@@ -3287,6 +3287,25 @@ async function onAuthChange(event, session) {
   window._cp('authchange: currentUser set, loading data');
 
   try {
+    // v25.4: On INITIAL_SESSION (page refresh), the cached token may be expired.
+    // Supabase refreshes it silently, but queries fired before the refresh
+    // completes get rejected by RLS and return empty data — causing the
+    // "collection 0, profile null" bug. We call getSession() first to ensure
+    // the token is valid before firing any queries. getSession() waits for
+    // the refresh to complete if one is in progress.
+    if (event === 'INITIAL_SESSION' || event === 'INITIAL') {
+      window._cp('authchange: waiting for valid session token...');
+      const { data: sessionData, error: sessionError } = await sbClient.auth.getSession();
+      if (sessionError || !sessionData?.session) {
+        window._cp('authchange: session invalid after refresh — signing out');
+        await sbClient.auth.signOut();
+        return;
+      }
+      // Update currentUser with the freshly-refreshed session data
+      currentUser = sessionData.session.user;
+      window._cp('authchange: session confirmed valid, proceeding with data load');
+    }
+
     // Load collections first (special case — supports local→cloud import).
     const localEntries = Object.keys(collection).length;
     const cloudData = await cloudLoadList('collections');
@@ -3312,12 +3331,23 @@ async function onAuthChange(event, session) {
     }
 
     // Load wants/listings/profile in parallel. Use allSettled so one failure
-    // doesn't kill the others.
+    // doesn't kill the others. v25.4: wrap in a 15s timeout so a hanging
+    // Supabase query doesn't leave the user stuck on the loading spinner forever.
     window._cp('authchange: about to load wants/listings/profile');
-    const results = await Promise.allSettled([
-      cloudLoadList('wants'),
-      cloudLoadList('listings'),
-      loadProfile(),
+    const loadTimeout = new Promise(resolve =>
+      setTimeout(() => resolve([
+        { status: 'rejected', reason: new Error('timeout') },
+        { status: 'rejected', reason: new Error('timeout') },
+        { status: 'rejected', reason: new Error('timeout') },
+      ]), 15000)
+    );
+    const results = await Promise.race([
+      Promise.allSettled([
+        cloudLoadList('wants'),
+        cloudLoadList('listings'),
+        loadProfile(),
+      ]),
+      loadTimeout,
     ]);
     wants = results[0].status === 'fulfilled' ? (results[0].value || {}) : {};
     listings = results[1].status === 'fulfilled' ? (results[1].value || {}) : {};
