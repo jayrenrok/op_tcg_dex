@@ -3342,9 +3342,16 @@ async function onAuthChange(event, session) {
     if (currentView === 'marketplace') renderMarketplace();
     // v25.4: If the user tapped the account button while data was still loading
     // (e.g. immediately after a page refresh), re-render the panel now that we
-    // have real profile data. Simple and safe — no spinner, no polling.
+    // have real profile data. Check both the backdrop AND a flag set by
+    // showAccountPanel when it renders with incomplete data mid-load.
+    // Re-render the account panel if it was opened while data was loading.
+    // We check both the backdrop (panel still open) AND a flag set by
+    // showAccountPanel when it rendered mid-load — covers the case where
+    // the user opened and closed the panel before loading finished.
     const authBackdrop = document.getElementById('auth-modal-backdrop');
-    if (authBackdrop && authBackdrop.classList.contains('open')) {
+    const panelWasOpenedMidLoad = window._accountPanelNeedsRefresh;
+    window._accountPanelNeedsRefresh = false;
+    if (panelWasOpenedMidLoad && authBackdrop && authBackdrop.classList.contains('open')) {
       showAccountPanel();
     }
     // Preload marketplace data for card detail cross-links. Fire-and-forget.
@@ -3430,6 +3437,11 @@ function showSignInPanel() {
 
 function showAccountPanel() {
   if (!currentUser) { showSignInPanel(); return; }
+  // v25.4: If data is still loading when the panel opens, set a flag so the
+  // onAuthChange load-complete handler knows to re-render the panel.
+  if (cloudSyncState === 'loading') {
+    window._accountPanelNeedsRefresh = true;
+  }
   const meta = currentUser.user_metadata || {};
   const name = meta.full_name || meta.name || currentUser.email || 'User';
   const email = currentUser.email || '';
