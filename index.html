@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v25.6 -->
+<!-- build: v25.7 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
@@ -2065,7 +2065,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v25.6</div>
+          <div class="subtitle">Card Database · v25.7</div>
         </div>
       </div>
       <div class="header-controls">
@@ -3273,15 +3273,36 @@ async function onAuthChange(event, session) {
 
   // === No-op cases ===
   if (!isSignedIn) return;  // already signed out, nothing to do
-  if (isSignedIn && wasSignedIn && currentUser?.id === session.user.id) {
-    // Token refresh on already-signed-in user — no UI churn needed.
-    // Still refresh currentUser in case the token's metadata changed.
+
+  // v25.7: On page reload Supabase fires INITIAL_SESSION first (token may not
+  // be refreshed yet), then TOKEN_REFRESHED with a valid token. Queries fired
+  // on INITIAL_SESSION consistently time out. So on INITIAL_SESSION we set
+  // currentUser and show the UI immediately, but defer the data load until
+  // TOKEN_REFRESHED fires with a guaranteed valid token.
+  if (event === 'INITIAL_SESSION') {
     currentUser = session.user;
-    updateAccountButton();   // belt-and-suspenders: keep the dot green
+    cloudSyncState = 'loading';
+    updateAccountButton();
+    if (currentView === 'collection') renderCollectionView();
+    if (currentView === 'marketplace') renderMarketplace();
+    window._cp('authchange: INITIAL_SESSION — deferring data load until TOKEN_REFRESHED');
     return;
   }
 
-  // === Sign-in event ===
+  // TOKEN_REFRESHED after page reload — this is when the token is valid.
+  // Treat it as a sign-in and load all data.
+  if (event === 'TOKEN_REFRESHED' && wasSignedIn && currentUser?.id === session.user.id) {
+    currentUser = session.user;
+    window._cp('authchange: TOKEN_REFRESHED — loading data now');
+    // Fall through to the sign-in load path below
+  } else if (isSignedIn && wasSignedIn && currentUser?.id === session.user.id) {
+    // Any other token refresh on already-signed-in user — no UI churn needed.
+    currentUser = session.user;
+    updateAccountButton();
+    return;
+  }
+
+  // === Sign-in / data load event ===
   // CRITICAL: set currentUser AND paint the UI immediately, BEFORE any await.
   // Otherwise a slow cloud load can leave the button gray while we wait.
   currentUser = session.user;
