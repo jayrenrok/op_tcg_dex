@@ -6382,7 +6382,19 @@ try {
 }
 </script>
   <!-- v26.0: ElevenLabs Convai voice agent widget -->
-  <!-- Provides an AI voice assistant to help users navigate the app -->
+  <!-- Pinned to far bottom-right, minimised so it doesn't obscure content -->
+  <style>
+    elevenlabs-convai {
+      position: fixed !important;
+      bottom: 16px !important;
+      right: 12px !important;
+      left: auto !important;
+      top: auto !important;
+      z-index: 9999 !important;
+      transform: scale(0.72) !important;
+      transform-origin: bottom right !important;
+    }
+  </style>
   <elevenlabs-convai agent-id="agent_6601ktnpfxq3fpttft3bxzez8xn4"></elevenlabs-convai>
   <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 </body>
