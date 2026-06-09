@@ -3284,20 +3284,16 @@ async function onAuthChange(event, session) {
   if (currentView === 'marketplace') renderMarketplace();
   window._cp('authchange: currentUser set, queuing data load');
 
-  // v25.9: FIX for Supabase JS deadlock bug.
-  // Any await sbClient call made inside onAuthStateChange causes a permanent
-  // hang — the callback holds an internal SDK lock that the query waits on.
-  // Fix: exit the callback immediately via queueMicrotask, then load data
-  // outside the callback where the lock is no longer held.
-  // Ref: https://supabase.com/docs/guides/troubleshooting/why-is-my-supabase-api-call-not-returning-PGzXw0
+  // v25.9: queueMicrotask fixes the Supabase JS deadlock bug.
+  // Any await sbClient call inside onAuthStateChange hangs forever because
+  // the callback holds an internal SDK lock. We exit the callback first,
+  // then load data outside the lock.
+  // Ref: supabase.com/docs/guides/troubleshooting/why-is-my-supabase-api-call-not-returning-PGzXw0
   queueMicrotask(() => loadUserData(session.user, event));
 }
 
-// Loads all user data outside the onAuthStateChange callback to avoid the
-// Supabase JS deadlock bug (see above).
 async function loadUserData(user, event) {
   if (!user || !sbClient) return;
-  // Guard: if another load already completed for this user, skip
   if (cloudSyncState === 'loaded' && currentUser?.id === user.id) return;
   window._cp('loadUserData: start for ' + user.email);
 
@@ -3355,7 +3351,6 @@ async function loadUserData(user, event) {
     renderGrid();
     if (currentView === 'collection') renderCollectionView();
     if (currentView === 'marketplace') renderMarketplace();
-    // v25.4: Re-render account panel if it was opened while data was loading
     const authBackdrop = document.getElementById('auth-modal-backdrop');
     const panelWasOpenedMidLoad = window._accountPanelNeedsRefresh;
     window._accountPanelNeedsRefresh = false;
@@ -5058,7 +5053,6 @@ function renderGrid() {
   document.getElementById('filter-count').textContent = filtered.length;
   document.getElementById('total-count').textContent = cards.length;
 
-  // v25.3: Multi-search banner
   const CARD_ID_RE_B = /^[a-z]{1,4}(\d{2})?-\d{3}(_[a-z0-9]+)?$/i;
   const multiTok = query.trim().split(',').map(t => t.trim()).filter(Boolean);
   const isMulti = multiTok.length >= 2 && multiTok.filter(t => CARD_ID_RE_B.test(t)).length >= 2;
@@ -5745,7 +5739,11 @@ function renderEnPricePanel(card) {
   const url = limitlessCardUrl(card.id);
   if (!url) return '';
   const pref = preferredCurrency();
-  const showConverter = pref !== 'USD';
+  // v25.9: Always show the converter on the EN panel, matching JP panel behaviour.
+  // Previously hidden when pref === 'USD', which meant USD users saw no converter
+  // even though USD→MYR/SGD/etc. is useful. Now always shown; dropdown excludes
+  // whichever currency is already the source (USD) to avoid pointless USD→USD.
+  const showConverter = true;
   const cardIdAttr = escapeHtml(card.id);
 
   let statusLine;
@@ -5758,10 +5756,11 @@ function renderEnPricePanel(card) {
   }
 
   // For the EN side, USD is the natural source (TCGPlayer). Offer all targets
-  // except USD itself.
+  // except USD itself. Default selection = user's preferred currency (or MYR).
+  const defaultTarget = pref !== 'USD' ? pref : 'MYR';
   const currencyOptions = CURRENCY_OPTIONS
     .filter(c => c.code !== 'USD')
-    .map(c => `<option value="${c.code}" ${c.code === pref ? 'selected' : ''}>${c.code} (${c.symbol})</option>`)
+    .map(c => `<option value="${c.code}" ${c.code === defaultTarget ? 'selected' : ''}>${c.code} (${c.symbol})</option>`)
     .join('');
 
   return `
@@ -5981,10 +5980,13 @@ function closeModal(e) {
   if (e && e.target !== e.currentTarget) return;
   const wasOpen = document.getElementById('modal').classList.contains('open');
   document.getElementById('modal').classList.remove('open');
+  // v24.1: clear any pending +/- changes when modal closes (they were never
+  // confirmed, so they're abandoned)
   pendingListChanges = {};
+  // v24.2: same for listing-details drafts — abandon unsaved edits
   listingDrafts = {};
-  // v25.3: Use replaceState instead of history.back() to avoid double-pop
-  // that was sending users to the main page on backdrop click.
+  // If we pushed a modal history entry, go back to consume it
+  // (only when triggered by user click, not by popstate handler below)
   if (wasOpen && history.state?.type === 'modal') {
     history.replaceState({ type: 'background' }, '');
   }
