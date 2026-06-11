@@ -1025,7 +1025,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; position: relati
 /* Collection stats header */
 .collection-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr); /* v26.0: 2 cols, Est. Value removed */
   gap: 8px;
   margin-bottom: 14px;
   padding: 14px;
@@ -2224,16 +2224,13 @@ select.listing-input {
       <div class="stat-lbl">Unique Cards</div>
       <div class="stat-val" id="stat-unique-cards">0</div>
     </div>
-    <div class="collection-stat">
-      <div class="stat-lbl">Est. Value</div>
-      <div class="stat-val accent" id="stat-total-value">—</div>
-    </div>
+    <!-- v26.0: Est. Value hidden — live pricing not available -->
   </div>
 
   <div id="collection-toolbar" class="collection-toolbar" style="display:none">
     <div class="collection-sort">
       <button class="sort-btn active" data-sort="recent">Recent</button>
-      <button class="sort-btn" data-sort="value">Value</button>
+      <!-- v26.0: Value sort hidden — live pricing not available -->
       <button class="sort-btn" data-sort="qty">Quantity</button>
       <button class="sort-btn" data-sort="id">Card ID</button>
     </div>
@@ -4857,45 +4854,24 @@ function renderCollectionView() {
 }
 
 function updateCollectionStats() {
+  // v26.0: Est. Value / Est. Cost / Est. Total removed — live pricing unavailable.
+  // Stats panel now shows only count and unique cards.
   const state = getListState(activeListSubTab);
   const activeMap = state?.map || {};
   let totalCards = 0;
-  let totalValue = 0;
-  let hasValue = false;
-  let currency = 'USD';
+  for (const entry of Object.values(activeMap)) totalCards += entry.qty;
 
-  for (const [id, entry] of Object.entries(activeMap)) {
-    totalCards += entry.qty;
-    const price = window._prices?.[id];
-    if (price?.active_median != null) {
-      totalValue += price.active_median * entry.qty;
-      hasValue = true;
-      currency = price.currency || 'USD';
-    }
-  }
-
-  // Customize labels per sub-tab
-  const labels = {
-    collection: { count: 'Cards Owned', value: 'Est. Value' },
-    wants:      { count: 'Wanted', value: 'Est. Cost' },
-    listings:   { count: 'For Sale', value: 'Est. Total' },
+  // Customize count label per sub-tab
+  const countLabels = {
+    collection: 'Cards Owned',
+    wants:      'Wanted',
+    listings:   'For Sale',
   };
-  const lbl = labels[activeListSubTab] || labels.collection;
-
-  // Update label texts (find by position since they're 3 fixed divs)
   const stats = document.querySelectorAll('#collection-stats .stat-lbl');
-  if (stats[0]) stats[0].textContent = lbl.count;
-  if (stats[2]) stats[2].textContent = lbl.value;
+  if (stats[0]) stats[0].textContent = countLabels[activeListSubTab] || 'Cards Owned';
 
   document.getElementById('stat-total-cards').textContent = totalCards;
   document.getElementById('stat-unique-cards').textContent = Object.keys(activeMap).length;
-  if (hasValue) {
-    const sym = currency === 'GBP' ? '£' : currency === 'EUR' ? '€' :
-                currency === 'JPY' ? '¥' : '$';
-    document.getElementById('stat-total-value').textContent = `${sym}${totalValue.toFixed(2)}`;
-  } else {
-    document.getElementById('stat-total-value').textContent = '—';
-  }
 }
 
 function setCollectionSort(sort) {
@@ -6347,8 +6323,7 @@ fetch('prices.json', { cache: 'no-store' })
   .then(data => {
     if (data) {
       window._prices = data;
-      // If user is currently on collection view, refresh stats (value depends on prices)
-      if (currentView === 'collection') updateCollectionStats();
+      // v26.0: Est. Value removed, no need to refresh stats on price load
     }
   })
   .catch(() => { /* prices.json not yet available; show pending state */ });
