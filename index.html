@@ -2328,17 +2328,10 @@ window.addEventListener('unhandledrejection', (e) => {
 // === Diagnostic checkpoint: tracks how far the script got executing ===
 // Visible as a tiny strip at the bottom of the screen. Updates as each major
 // section executes. If you see "Stuck at: X", we know exactly where script died.
+// v26.0: Diagnostic strip hidden from users — logs to console only.
+// To re-enable the visual strip, restore the original _cp implementation.
 window._cp = (label) => {
-  try {
-    let el = document.getElementById('_cp_marker');
-    if (!el && document.body) {
-      el = document.createElement('div');
-      el.id = '_cp_marker';
-      el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9998;background:rgba(245,158,11,0.85);color:#0a0d14;padding:4px 8px;font-size:10px;font-family:monospace;text-align:center;';
-      document.body.appendChild(el);
-    }
-    if (el) el.textContent = 'cp: ' + label;
-  } catch(_) {}
+  try { console.debug('[cp]', label); } catch(_) {}
 };
 window._cp('boot');
 
@@ -3526,7 +3519,7 @@ function showAccountPanel() {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
         ${currentProfile?.telegram_linked ? '✅ Telegram linked' : 'Link Telegram for notifications'}
       </button>
-      <button class="sync-now-btn" id="do-sync-now">Sync now (force refresh from cloud)</button>
+      <!-- v26.0: Sync now button hidden from users -->
       <button class="sign-out-btn" id="do-sign-out">Sign out</button>
       <button class="auth-cancel-btn" id="auth-cancel">Close</button>
     </div>
@@ -3537,7 +3530,7 @@ function showAccountPanel() {
   document.getElementById('do-edit-location').addEventListener('click', () => showLocationEditor(false));
   document.getElementById('do-edit-contact').addEventListener('click', showContactEditor);
   document.getElementById('do-edit-display-name').addEventListener('click', showDisplayNameEditor);
-  document.getElementById('do-sync-now').addEventListener('click', syncNow);
+  // v26.0: Sync now button hidden
   document.getElementById('do-tg-link').addEventListener('click', linkTelegram);
 }
 
@@ -6425,9 +6418,8 @@ try {
   setView('sets', true);  // Sets is the default landing view (v22)
   window._cp('render-done: ' + cards.length + ' cards');
 } catch (e) {
-  window._cp('render-FAILED: ' + e.message);
-  document.body.insertAdjacentHTML('afterbegin',
-    `<div style="background:#DC2626;color:#fff;padding:16px;font-family:monospace;font-size:12px">RENDER ERR: ${e.message}</div>`);
+  // v26.0: Render errors logged to console only — not shown to users
+  console.error('[render-FAILED]', e.message);
 }
 </script>
   <!-- v26.0: ElevenLabs Convai voice agent widget -->
