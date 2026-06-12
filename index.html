@@ -2055,6 +2055,22 @@ select.listing-input {
   margin-left: 6px;
 }
 </style>
+  <!-- v26.0: Google Analytics 4 — Measurement ID G-6QL86LL18B -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-6QL86LL18B"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-6QL86LL18B', {
+      page_title: 'OP TCG Dex',
+      page_location: window.location.href,
+    });
+
+    // Helper — fire a GA4 event safely (no-op if gtag not ready)
+    window._ga = function(eventName, params) {
+      try { gtag('event', eventName, params || {}); } catch(e) {}
+    };
+  </script>
 </head>
 <body>
 
@@ -2406,6 +2422,7 @@ function imageFor(card, size) {
 }
 
 function setLang(lang) {
+  window._ga('select_content', { content_type: 'language', item_id: lang });
   if (!LANG_HOSTS[lang] || lang === currentLang) return;
   currentLang = lang;
   localStorage.setItem('opdex_lang', lang);
@@ -3240,6 +3257,7 @@ async function onAuthChange(event, session) {
 
   // === Sign-out event === (handle first, simple path)
   if (!isSignedIn && wasSignedIn) {
+    window._ga('logout');
     teardownRealtime();
     currentUser = null;
     currentProfile = null;
@@ -3280,6 +3298,7 @@ async function onAuthChange(event, session) {
   if (currentView === 'collection') renderCollectionView();
   if (currentView === 'marketplace') renderMarketplace();
   window._cp('authchange: currentUser set, queuing data load');
+  window._ga('login', { method: 'Google' });
 
   // v25.9: queueMicrotask fixes the Supabase JS deadlock bug.
   // Any await sbClient call inside onAuthStateChange hangs forever because
@@ -4063,6 +4082,7 @@ function setMktLocationFilter(loc) {
 // Top-level marketplace renderer — decides whether to show empty state
 // (anonymous user) or content area, kicks off data load if signed in.
 function renderMarketplace() {
+  window._ga('view_item_list', { item_list_name: 'marketplace_' + (mktSubTab || 'browse') });
   const emptyEl = document.getElementById('marketplace-empty');
   const contentEl = document.getElementById('marketplace-content');
 
@@ -4622,6 +4642,7 @@ function renderListingCard(listing) {
 // link, so the message is ignored for those — the user will type or paste
 // the listing details themselves.
 function contactToUrl(contact, messageText) {
+  window._ga('contact_seller', { method: 'whatsapp' });
   const c = (contact || '').trim();
   const textParam = messageText ? `?text=${encodeURIComponent(messageText)}` : '';
   // Phone-like → WhatsApp
@@ -4883,6 +4904,7 @@ function setCollectionSort(sort) {
 }
 
 function selectSet(prefix) {
+  window._ga('select_item', { item_id: prefix, item_name: SET_NAMES[prefix] || prefix, item_list_name: 'set_browser' });
   // Push history so Android back button returns to the Sets browser
   history.pushState({ type: 'set', prefix }, '');
   _selectSetInternal(prefix);
@@ -5152,6 +5174,8 @@ function clearFilters() {
 let searchTimer;
 document.getElementById('search-input').addEventListener('input', (e) => {
   query = e.target.value;
+  // GA4: track searches longer than 2 chars (debounced naturally by typing)
+  if (query.trim().length > 2) window._ga('search', { search_term: query.trim() });
   clearTimeout(searchTimer);
   // Show the inline X as soon as there's text (don't wait for the debounce)
   document.getElementById('search-clear').style.display = query ? 'flex' : 'none';
@@ -5180,6 +5204,8 @@ document.getElementById('search-input').addEventListener('input', (e) => {
 });
 
 function openModal(idx) {
+  const _mc = cards[idx];
+  if (_mc) window._ga('view_item', { item_id: _mc.id, item_name: _mc.name, item_category: _mc.set || '' });
   const card = window._filteredCards[idx];
   if (!card) return;
 
@@ -5472,6 +5498,7 @@ async function confirmListChange(cardId, listName) {
     delete state.map[cardId];
     if (listName === 'collection') saveCollection();
     await cloudDeleteCardFromList(cardId, state.table);
+    window._ga('remove_from_cart', { item_id: cardId, item_list_name: labelMap[listName] });
     showToast(`Removed ${cardId} from ${labelMap[listName]}`);
   } else {
     if (!state.map[cardId]) {
@@ -5482,6 +5509,8 @@ async function confirmListChange(cardId, listName) {
     if (listName === 'collection') saveCollection();
     await cloudUpsertCardInList(cardId, state.map[cardId], state.table);
     if (actualQty === 0) {
+      window._ga(listName === 'wants' ? 'add_to_wishlist' : 'add_to_cart',
+        { item_id: cardId, item_list_name: labelMap[listName], quantity: pendingQty });
       showToast(`Added ${cardId} · ${pendingQty} in ${labelMap[listName]}`);
     } else {
       showToast(`Updated ${cardId} · ${pendingQty} in ${labelMap[listName]}`);
@@ -6369,6 +6398,8 @@ try {
     /* Marketplace listings scroll area */
     #mkt-listings { padding-bottom: 90px !important; }
   </style>
+  <!-- GA4: PWA install tracking -->
+  <script>window.addEventListener('appinstalled', () => window._ga('pwa_install'));</script>
   <elevenlabs-convai agent-id="agent_6601ktnpfxq3fpttft3bxzez8xn4"></elevenlabs-convai>
   <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
 </body>
