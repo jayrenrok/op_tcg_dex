@@ -315,6 +315,18 @@ header {
   font-size: 12px; font-weight: 600;
 }
 .sync-now-btn:hover { background: rgba(245,158,11,0.18); }
+.tg-link-btn {
+  width: 100%; padding: 11px 16px; border-radius: 10px; border: none;
+  background: rgba(41,182,246,0.12); border: 1px solid rgba(41,182,246,0.3);
+  color: #29B6F6; font-size: 14px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-bottom: 8px; transition: background 0.15s;
+}
+.tg-link-btn:hover { background: rgba(41,182,246,0.22); }
+.tg-link-btn.linked {
+  background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);
+  color: #10B981;
+}
 
 /* List loading state (during cloud sync) */
 .list-loading-state {
@@ -3510,6 +3522,10 @@ function showAccountPanel() {
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Collection ${Object.keys(collection).length} · WTB ${Object.keys(wants).length} · WTS ${Object.keys(listings).length}
       </div>
+      <button class="tg-link-btn ${currentProfile?.telegram_linked ? 'linked' : ''}" id="do-tg-link">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
+        ${currentProfile?.telegram_linked ? '✅ Telegram linked' : 'Link Telegram for notifications'}
+      </button>
       <button class="sync-now-btn" id="do-sync-now">Sync now (force refresh from cloud)</button>
       <button class="sign-out-btn" id="do-sign-out">Sign out</button>
       <button class="auth-cancel-btn" id="auth-cancel">Close</button>
@@ -3522,6 +3538,35 @@ function showAccountPanel() {
   document.getElementById('do-edit-contact').addEventListener('click', showContactEditor);
   document.getElementById('do-edit-display-name').addEventListener('click', showDisplayNameEditor);
   document.getElementById('do-sync-now').addEventListener('click', syncNow);
+  document.getElementById('do-tg-link').addEventListener('click', linkTelegram);
+}
+
+// v26.0: Generate a link code and open Telegram deep link
+async function linkTelegram() {
+  if (!currentUser || !sbClient) return;
+  // Generate an 8-char uppercase alphanumeric code
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+
+  // Store code in Supabase with 15-minute expiry
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const { error } = await sbClient
+    .from('telegram_link_codes')
+    .upsert({ code, user_id: currentUser.id, expires_at: expiresAt },
+             { onConflict: 'code' });
+
+  if (error) {
+    showToast('Could not generate link code. Please try again.');
+    window._cp('tg-link: error ' + error.message);
+    return;
+  }
+
+  // Open Telegram deep link — replace OP_TCG_DEX_bot with your actual bot username
+  const botUsername = 'OP_DEX_BOT';
+  const tgUrl = `https://t.me/${botUsername}?start=${code}`;
+  window.open(tgUrl, '_blank');
+  window._cp('tg-link: opened ' + tgUrl);
 }
 
 // Force re-pull all three lists from the cloud. Useful diagnostic + recovery.
