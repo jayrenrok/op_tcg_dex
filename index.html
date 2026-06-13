@@ -2089,7 +2089,7 @@ select.listing-input {
 <header>
   <div class="header-inner">
     <div class="brand-row">
-      <div class="brand" onclick="clearFilters()" title="Back to home">
+      <div class="brand" onclick="goHome()" title="Back to home">
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
@@ -5185,6 +5185,27 @@ function toggleRarity(r) {
   if (i >= 0) activeRarities.splice(i, 1); else activeRarities.push(r);
   visibleLimit = PAGE_SIZE; render();
 }
+// v26.0: Logo tap — always return to Sets / Main regardless of current view
+function goHome() {
+  query = ''; activeColors = []; activeTypes = []; activeRarities = [];
+  activeSet = null;
+  visibleLimit = PAGE_SIZE;
+  try { document.getElementById('search-input').value = ''; } catch(_) {}
+  try { document.getElementById('clear-btn').style.display = 'none'; } catch(_) {}
+  try { document.getElementById('search-clear').style.display = 'none'; } catch(_) {}
+  // Hide multi-search banner if visible
+  const banner = document.getElementById('multi-search-banner');
+  if (banner) banner.style.display = 'none';
+  // Switch to Sets view and reset to Main category tab
+  setView('sets', true);
+  // Reset the set category to Main
+  document.querySelectorAll('.set-cat-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.cat === 'MAIN');
+  });
+  activeSetCategory = 'MAIN';
+  renderSetGrid();
+}
+
 function clearFilters() {
   query = ''; activeColors = []; activeTypes = []; activeRarities = [];
   visibleLimit = PAGE_SIZE;
