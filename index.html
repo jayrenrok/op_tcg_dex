@@ -47,7 +47,7 @@ header {
 }
 .header-inner { max-width: 1200px; margin: 0 auto; padding: 16px 16px 12px; }
 .brand-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
-.brand { display: flex; align-items: center; gap: 8px; }
+.brand { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
 .brand .anchor { width: 20px; height: 20px; color: #F59E0B; }
 .brand h1 { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 0.04em; line-height: 1; }
 .brand h1 .accent { color: #F59E0B; }
@@ -2089,7 +2089,7 @@ select.listing-input {
 <header>
   <div class="header-inner">
     <div class="brand-row">
-      <div class="brand">
+      <div class="brand" onclick="clearFilters()" title="Back to home">
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
