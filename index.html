@@ -5874,6 +5874,9 @@ function wireJpConverter() {
 
   // Target-currency dropdown → persist choice, recompute, refresh status line
   document.querySelectorAll('[data-jp-pref-select]').forEach(sel => {
+    // v26.0: Persist the initial selected value immediately on wire-up so
+    // the first conversion uses the correct currency without needing a change event.
+    if (sel.value) setPreferredCurrency(sel.value);
     sel.addEventListener('change', () => {
       setPreferredCurrency(sel.value);
       // Recompute every visible converter using the new preferred currency
@@ -5938,6 +5941,8 @@ function wireJpConverter() {
     inp.addEventListener('click', e => e.stopPropagation());
   });
   document.querySelectorAll('[data-en-pref-select]').forEach(sel => {
+    // v26.0: Persist initial selected currency on wire-up (same fix as JP)
+    if (sel.value) setPreferredCurrency(sel.value);
     sel.addEventListener('change', () => {
       setPreferredCurrency(sel.value);
       document.querySelectorAll('[data-en-input]').forEach(inp => {
@@ -6422,22 +6427,17 @@ try {
   console.error('[render-FAILED]', e.message);
 }
 </script>
-  <!-- v26.0: ElevenLabs Convai voice agent widget -->
-  <!-- Widget renders at its natural position. We add bottom padding to all
-       scrollable areas so content can scroll above the widget when needed. -->
-  <style>
-    /* Give the main page body enough room to scroll past the widget */
-    body { padding-bottom: 100px !important; }
-    /* Card detail modal — allow extra scroll room at the bottom */
-    .modal { padding-bottom: 90px !important; }
-    /* Account / auth modal */
-    .auth-modal-backdrop { padding-bottom: 90px !important; }
-    /* Marketplace listings scroll area */
-    #mkt-listings { padding-bottom: 90px !important; }
-  </style>
   <!-- GA4: PWA install tracking -->
   <script>window.addEventListener('appinstalled', () => window._ga('pwa_install'));</script>
+  <!-- v26.0: ElevenLabs Convai widget — temporarily hidden, uncomment to re-enable
+  <style>
+    body { padding-bottom: 100px !important; }
+    .modal { padding-bottom: 90px !important; }
+    .auth-modal-backdrop { padding-bottom: 90px !important; }
+    #mkt-listings { padding-bottom: 90px !important; }
+  </style>
   <elevenlabs-convai agent-id="agent_6601ktnpfxq3fpttft3bxzez8xn4"></elevenlabs-convai>
   <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
+  -->
 </body>
 </html>
