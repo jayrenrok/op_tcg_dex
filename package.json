@@ -1,0 +1,16 @@
+{
+  "name": "op-tcg-dex-scan-hash-generator",
+  "version": "1.0.0",
+  "description": "One-time script to build the reference perceptual-hash database for OP TCG Dex's Scan Card feature.",
+  "private": true,
+  "scripts": {
+    "generate": "node generate-hashes.js"
+  },
+  "dependencies": {
+    "sharp": "^0.33.0",
+    "p-limit": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
