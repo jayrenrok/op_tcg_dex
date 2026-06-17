@@ -13,9 +13,15 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v26.1 -->
+<!-- build: v26.2 -->
 <!-- v26.1: Scan Card (camera + on-device OCR) feature added -->
-<!-- See section "v26.1: Scan Card (camera OCR)" in JS for implementation -->
+<!-- v26.2: Fixed Scan Card matching — extractIdCandidates no longer matches
+     across unrelated words (was missing IDs printed inside label text like
+     "Number: OP05-119"); name-only fallback now disambiguates same-named
+     reprints using visible cost/power instead of guessing by array order;
+     surfaces "ambiguous" instead of a wrong guess when nothing disambiguates
+     a popular character with many printings. See section "v26.1: Scan Card
+     (camera OCR)" in JS. -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <!-- v26.1: Tesseract.js for on-device OCR (Scan Card feature). Loaded lazily-used
@@ -2282,7 +2288,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v26.1</div>
+          <div class="subtitle">Card Database · v26.2</div>
         </div>
       </div>
       <div class="header-controls">
@@ -5718,11 +5724,11 @@ async function captureAndScan() {
     const { data } = await worker.recognize(canvas);
     const rawText = data?.text || '';
 
-    const matches = matchCardFromOcrText(rawText);
-    showScanResults(matches, rawText);
+    const result = matchCardFromOcrText(rawText);
+    showScanResults(result, rawText);
   } catch (e) {
     console.error('Scan error:', e);
-    showScanResults([], '');
+    showScanResults({ matches: [], ambiguous: false }, '');
   } finally {
     setScanStatus(false);
     document.getElementById('scan-shutter-btn').disabled = false;
@@ -5758,52 +5764,84 @@ function levenshtein(a, b) {
 // Parses a cleaned alphanumeric blob into the canonical "LETTERS+2digits-3digits"
 // shape (e.g. "OP09-061"), correcting OCR's O/0 and I/1/L confusion based on
 // POSITION rather than blindly substituting every occurrence of a character.
-// One Piece TCG card IDs are always: 1-4 letters followed by exactly 5 digits.
-// Anchoring on that shape lets us fix the letter zone and digit zone
-// independently — a leading "O" in "OP" should stay a letter, while a "O"
-// inside the digit run should become "0". A naive global replace gets this
-// wrong (see v26.1 test failures during development).
+// One Piece TCG card IDs are always: 1-4 letters followed by exactly 5 digits,
+// sometimes with a trailing print-variant suffix (parallel/alt-art/promo —
+// e.g. "OP05-119_p1" or the in-print "EB" suffix some alt-arts carry). We
+// match the base 1-4-letters+5-digits shape and ignore anything trailing it,
+// since cardById is keyed by the base ID for lookups here (variant suffixes
+// are a display-only refinement the scan flow doesn't need to resolve).
 function parseIdToken(raw) {
   const alnum = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-  if (alnum.length < 6 || alnum.length > 9) return null;
-  const digitZone = alnum.slice(-5).replace(/O/g, '0').replace(/[IL]/g, '1');
-  const letterZone = alnum.slice(0, -5).replace(/0/g, 'O').replace(/1/g, 'I');
+  if (alnum.length < 6) return null;
+  // Find the first run of exactly 1-4 letters followed by exactly 5 digits
+  // anywhere in the token (handles trailing suffix noise like "EB", "P1").
+  const m = alnum.match(/^([A-Z]{1,4})(\d{5}|[O0-9]{2}-?[O0-9I1L]{3})/) ||
+            alnum.match(/^([A-Z]{1,4})([A-Z0-9]{5})/);
+  if (!m) return null;
+  const letterZone = m[1].replace(/0/g, 'O').replace(/1/g, 'I');
+  const digitZoneRaw = alnum.slice(m[1].length, m[1].length + 5);
+  const digitZone = digitZoneRaw.replace(/O/g, '0').replace(/[IL]/g, '1');
   if (!/^[A-Z]{1,4}$/.test(letterZone)) return null;
   if (!/^\d{5}$/.test(digitZone)) return null;
   return `${letterZone}${digitZone.slice(0, 2)}-${digitZone.slice(2)}`;
 }
 
-// Extracts ID-like tokens from raw OCR text (e.g. "0P09-061", "OPO9 061")
-// and tries to resolve each against cardById, tolerating common misreads.
-// The pattern itself is loose about O/0 and I/1/L confusion since OCR can
-// misread either direction (a printed "0" as "O" or a printed "O" as "0").
+// Extracts ID-like tokens from raw OCR text (e.g. "0P09-061", "OPO9 061",
+// "Number OP12-037"). Works word-by-word rather than with a single sweeping
+// regex, because a regex with `\s?` standing in for the ID's internal
+// separator will happily match ACROSS unrelated words — e.g. on the text
+// "Number OP12-037" a naive scan matched "Number OP12" (treating the space
+// after "Numb-er" as the separator) before it ever reached the real ID.
+// That bug caused real scans to never find IDs printed inside surrounding
+// label text (very common — sites print "Number: OP05-119"), which pushed
+// matching down to the much weaker name-only fallback. Splitting on
+// whitespace first means each candidate is a token that was already
+// whitespace-bounded in the source text, plus adjacent-pair joins to
+// recover tokens OCR accidentally split on a space (e.g. "OPO9 O61").
 function extractIdCandidates(rawText) {
-  const lines = rawText.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  const words = rawText.split(/\s+/).filter(Boolean);
   const candidates = new Set();
-  // Loose pattern: 2-4 alnum "letters" (allowing O/0/I/1/L mix-ups), optional
-  // digits, separator, then 3 alnum "digits" (same mix-up tolerance).
-  const loosePattern = /[A-Za-z0-9]{2,4}\s?-?\s?[A-Za-z0-9]{2}\s?-?\s?[A-Za-z0-9]{3}/g;
-  for (const line of lines) {
-    const found = line.match(loosePattern) || [];
-    for (const f of found) candidates.add(f);
+  const idShape = /^[A-Za-z0-9]{2,4}-?[A-Za-z0-9]{2}-?[A-Za-z0-9]{3}[A-Za-z0-9]{0,3}$/;
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i].replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9-]+$/g, ''); // trim stray punctuation
+    if (idShape.test(w) && w.length <= 12) candidates.add(w);
+    if (i + 1 < words.length) {
+      const next = words[i + 1].replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9-]+$/g, '');
+      const combined = w + next;
+      if (idShape.test(combined) && combined.length <= 12) candidates.add(combined);
+    }
   }
-  // Also scan the whole blob in case line-splitting broke a token
-  const wholeFound = rawText.match(loosePattern) || [];
-  for (const f of wholeFound) candidates.add(f);
-  // Cap candidates — the loose pattern can match incidental alphanumeric runs
-  // in ability text. This bounds worst-case fuzzy-match cost on low-end devices.
+  // Cap candidates — bounds worst-case fuzzy-match cost on low-end devices.
   return Array.from(candidates).slice(0, 15);
 }
 
+// Extracts standalone numbers from the OCR text that plausibly correspond to
+// a printed cost or power value. Cost is a single digit in a circle
+// (top-left); power is a 3-5 digit number, usually with a comma or "K"-less
+// thousands grouping omitted (e.g. "12000", "6000"). These are printed in
+// large, high-contrast numerals — by far the most OCR-reliable text on a
+// TCG card — so they're a much stronger disambiguator between same-named
+// reprints than trying to re-read the small card code.
+function extractNumberSignals(rawText) {
+  const nums = (rawText.match(/\b\d{1,5}\b/g) || []).map(Number);
+  return new Set(nums);
+}
+
 // Resolves a raw OCR text blob into a ranked list of candidate cards.
-// Returns up to 3 cards, best match first.
+// Returns up to 3 cards, best match first — or an empty list if matches
+// were too ambiguous to present with any confidence (see "ambiguous"
+// handling below; this is preferable to guessing one of many same-named
+// reprints, which was the v26.1 bug reported by Jayren: scanning OP05-119
+// returned three unrelated Luffy cards because name-only ties were broken
+// by array order, not by anything visible in the photo).
 function matchCardFromOcrText(rawText) {
-  if (!rawText || !rawText.trim()) return [];
+  if (!rawText || !rawText.trim()) return { matches: [], ambiguous: false };
 
   const idCandidates = extractIdCandidates(rawText);
   const scored = new Map(); // cardId -> best score (lower = better)
 
-  // 1) Exact / near-exact ID match against known IDs
+  // 1) Exact / near-exact ID match against known IDs — strongest signal,
+  // since a correctly-read code uniquely identifies the card.
   for (const raw of idCandidates) {
     const parsed = parseIdToken(raw);
     let exactHit = false;
@@ -5811,7 +5849,6 @@ function matchCardFromOcrText(rawText) {
       scored.set(parsed, Math.min(scored.get(parsed) ?? 99, 0));
       exactHit = true;
     }
-    // No exact hit — fuzzy match against all card IDs within edit-distance 2
     if (!exactHit) {
       const cleaned = (parsed || raw.replace(/\s+/g, '')).toUpperCase();
       let bestId = null, bestDist = 99;
@@ -5826,32 +5863,87 @@ function matchCardFromOcrText(rawText) {
     }
   }
 
-  // 2) Name-based fallback: check if any card name appears (substring) in
-  // the OCR text. Helps when the code line was unreadable but the title
-  // printed in large text wasn't.
-  if (scored.size < 3) {
-    const lowerText = rawText.toLowerCase().replace(/[^a-z0-9.\s]/g, ' ');
-    for (const c of cards) {
-      const nameLower = c.name.toLowerCase();
-      if (nameLower.length >= 4 && lowerText.includes(nameLower)) {
-        scored.set(c.id, Math.min(scored.get(c.id) ?? 99, 3));
-      }
+  // If we already have a confident ID-based match, return it without
+  // touching the noisier name-matching path at all.
+  if (scored.size > 0) {
+    const ranked = Array.from(scored.entries()).sort((a, b) => a[1] - b[1]);
+    return {
+      matches: ranked.slice(0, 3).map(([id]) => cardById[id]).filter(Boolean),
+      ambiguous: false,
+    };
+  }
+
+  // 2) Name-based fallback: the code wasn't readable, so look for the card
+  // title printed in large text. One Piece TCG reprints the same character
+  // name across many sets/rarities, so a name hit alone usually maps to
+  // MANY cards — we disambiguate using cost/power, which are large, clean
+  // numerals OCR reads far more reliably than the small printed code.
+  const lowerText = rawText.toLowerCase().replace(/[^a-z0-9.\s]/g, ' ');
+  const numberSignals = extractNumberSignals(rawText);
+  const nameMatches = [];
+  for (const c of cards) {
+    const nameLower = c.name.toLowerCase();
+    if (nameLower.length >= 4 && lowerText.includes(nameLower)) {
+      nameMatches.push(c);
     }
   }
 
-  return Array.from(scored.entries())
-    .sort((a, b) => a[1] - b[1])
-    .slice(0, 3)
-    .map(([id]) => cardById[id])
-    .filter(Boolean);
+  if (nameMatches.length === 0) {
+    return { matches: [], ambiguous: false };
+  }
+  if (nameMatches.length === 1) {
+    return { matches: nameMatches, ambiguous: false };
+  }
+
+  // Multiple same-named cards: rank by how many of their cost/power values
+  // were also seen as standalone numbers in the OCR text.
+  const withScore = nameMatches.map(c => {
+    let hits = 0;
+    const cost = Number(c.cost);
+    const power = Number(c.power);
+    if (!Number.isNaN(cost) && numberSignals.has(cost)) hits++;
+    if (!Number.isNaN(power) && numberSignals.has(power)) hits++;
+    return { card: c, hits };
+  });
+  withScore.sort((a, b) => b.hits - a.hits);
+
+  const topHits = withScore[0].hits;
+  if (topHits > 0) {
+    // At least one candidate is corroborated by a visible cost/power —
+    // trust the ranking and return the top 3.
+    const tied = withScore.filter(w => w.hits === topHits);
+    return {
+      matches: (tied.length <= 3 ? tied : withScore).slice(0, 3).map(w => w.card),
+      ambiguous: false,
+    };
+  }
+
+  // No disambiguating signal at all — if there are only a handful of
+  // same-named cards, showing them as "pick one" candidates is still
+  // useful. If there are many (the common case for popular characters
+  // like Luffy), presenting any 3 as if they were good guesses is
+  // actively misleading, so we surface this as ambiguous instead.
+  if (nameMatches.length <= 4) {
+    return { matches: nameMatches.slice(0, 3), ambiguous: false };
+  }
+  return { matches: [], ambiguous: true, ambiguousName: nameMatches[0].name, ambiguousCount: nameMatches.length };
 }
 
-function showScanResults(matchedCards, rawText) {
+function showScanResults(result, rawText) {
   const resultsBox = document.getElementById('scan-results');
   const listEl = document.getElementById('scan-results-list');
   document.getElementById('scan-controls').style.display = 'none';
 
-  if (!matchedCards.length) {
+  const matchedCards = result?.matches || [];
+
+  if (result?.ambiguous) {
+    // Name was readable but it's a popular character with many reprints,
+    // and nothing else in the photo (cost/power) narrowed it down. Guessing
+    // among dozens of same-named cards would be misleading, so point the
+    // user at search instead — they likely know the set/rarity even if the
+    // scan couldn't tell.
+    listEl.innerHTML = `<div class="scan-no-match">Found "${escapeHtml(result.ambiguousName)}", but there are ${result.ambiguousCount} printings of this card and the code wasn't readable. Try filling the frame with just the card, avoiding glare — or search "${escapeHtml(result.ambiguousName)}" instead.</div>`;
+  } else if (!matchedCards.length) {
     listEl.innerHTML = `<div class="scan-no-match">Couldn't read that card. Try better lighting, fill the frame, and avoid glare on the foil.</div>`;
   } else {
     listEl.innerHTML = matchedCards.map(card => `
