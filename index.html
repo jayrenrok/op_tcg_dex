@@ -1797,18 +1797,20 @@ select.listing-input {
   display: inline-flex; align-items: center; gap: 4px;
 }
 
-/* ===== v26.1: Scan Card (camera OCR) ===== */
+/* ===== v26.1: Scan Card (camera OCR) =====
+   Lives in the persistent search-row (next to the filter button), not
+   gated to any one tab — scanning is an input method for finding a card,
+   the same job the search bar does, so it should be available everywhere
+   search is. */
 .scan-card-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 12px;
+  padding: 0 14px; border-radius: 12px;
   background: rgba(245,158,11,0.12);
   border: 1px solid rgba(245,158,11,0.35);
-  border-radius: 10px;
-  font-size: 12px; font-weight: 700;
   color: #F59E0B;
-  white-space: nowrap;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
 }
-.scan-card-btn svg { width: 15px; height: 15px; }
+.scan-card-btn svg { width: 18px; height: 18px; }
 .scan-card-btn:active { background: rgba(245,158,11,0.22); }
 
 .scan-modal-backdrop {
@@ -2305,6 +2307,9 @@ select.listing-input {
         <input id="search-input" class="search-input" type="text" placeholder="Search by name or card ID (e.g. OP01-001)" autocomplete="off" />
         <button class="search-clear" id="search-clear" aria-label="Clear search" style="display:none" onclick="clearFilters()">✕</button>
       </div>
+      <button class="scan-card-btn" id="scan-card-btn" aria-label="Scan a card">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+      </button>
       <button class="filter-btn" id="filter-toggle" onclick="toggleFilters()">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
       </button>
@@ -2449,10 +2454,6 @@ select.listing-input {
       <button class="sort-btn" data-sort="qty">Quantity</button>
       <button class="sort-btn" data-sort="id">Card ID</button>
     </div>
-    <button class="scan-card-btn" id="scan-card-btn">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
-      Scan
-    </button>
     <button class="clear-collection-btn" id="clear-collection-btn">Clear all</button>
   </div>
 
