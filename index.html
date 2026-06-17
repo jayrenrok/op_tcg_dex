@@ -13,8 +13,14 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v26.0 -->
+<!-- build: v26.1 -->
+<!-- v26.1: Scan Card (camera + on-device OCR) feature added -->
+<!-- See section "v26.1: Scan Card (camera OCR)" in JS for implementation -->
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- v26.1: Tesseract.js for on-device OCR (Scan Card feature). Loaded lazily-used
+     but tag is here so the network fetch can warm in the background. -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
 
@@ -1791,6 +1797,187 @@ select.listing-input {
   display: inline-flex; align-items: center; gap: 4px;
 }
 
+/* ===== v26.1: Scan Card (camera OCR) ===== */
+.scan-card-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.35);
+  border-radius: 10px;
+  font-size: 12px; font-weight: 700;
+  color: #F59E0B;
+  white-space: nowrap;
+}
+.scan-card-btn svg { width: 15px; height: 15px; }
+.scan-card-btn:active { background: rgba(245,158,11,0.22); }
+
+.scan-modal-backdrop {
+  position: fixed; inset: 0;
+  background: #05060A;
+  z-index: 300;
+  display: none;
+  flex-direction: column;
+}
+.scan-modal-backdrop.open { display: flex; }
+.scan-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  flex-shrink: 0;
+}
+.scan-modal-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px; letter-spacing: 0.04em;
+  color: #FAF7F2;
+}
+.scan-modal-close {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  color: #FAF7F2;
+}
+.scan-modal-close svg { width: 18px; height: 18px; }
+
+.scan-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+  display: flex; align-items: center; justify-content: center;
+}
+.scan-video, .scan-canvas-preview {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.scan-canvas-preview { display: none; }
+.scan-guide-box {
+  position: absolute;
+  border: 2px solid rgba(245,158,11,0.85);
+  border-radius: 14px;
+  box-shadow: 0 0 0 1000px rgba(0,0,0,0.45);
+  pointer-events: none;
+  /* aspect ratio approximates a TCG card (63mm x 88mm) */
+  width: 64%;
+  aspect-ratio: 63 / 88;
+}
+.scan-hint {
+  position: absolute;
+  bottom: 22px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20,20,24,0.75);
+  color: #FAF7F2;
+  font-size: 12px; font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.scan-status {
+  position: absolute;
+  top: 14px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(245,158,11,0.92);
+  color: #1A1208;
+  font-size: 12px; font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 20px;
+  display: none;
+  align-items: center; gap: 6px;
+}
+.scan-status.show { display: flex; }
+.scan-status .spin {
+  width: 12px; height: 12px;
+  border: 2px solid rgba(26,18,8,0.3);
+  border-top-color: #1A1208;
+  border-radius: 50%;
+  animation: scan-spin 0.7s linear infinite;
+}
+@keyframes scan-spin { to { transform: rotate(360deg); } }
+
+.scan-controls {
+  flex-shrink: 0;
+  padding: 18px 16px 24px;
+  display: flex; align-items: center; justify-content: center;
+}
+.scan-shutter-btn {
+  width: 68px; height: 68px;
+  border-radius: 50%;
+  background: #FAF7F2;
+  border: 4px solid rgba(245,158,11,0.6);
+  display: flex; align-items: center; justify-content: center;
+}
+.scan-shutter-btn:active { transform: scale(0.94); }
+.scan-shutter-btn:disabled { opacity: 0.4; }
+
+.scan-error {
+  padding: 24px 20px;
+  text-align: center;
+  color: #FAF7F2;
+}
+.scan-error .title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; margin-bottom: 8px; }
+.scan-error .sub { font-size: 13px; color: #8B92A8; margin-bottom: 16px; }
+.scan-error button {
+  background: rgba(245,158,11,0.15);
+  color: #F59E0B; border: 1px solid rgba(245,158,11,0.35);
+  padding: 9px 18px; border-radius: 10px; font-size: 13px; font-weight: 700;
+}
+
+/* Results panel — slides up over the viewport after capture */
+.scan-results {
+  flex-shrink: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #141A29 0%, #0E121C 100%);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 16px;
+  display: none;
+}
+.scan-results.show { display: block; }
+.scan-results-title {
+  font-size: 12px; font-weight: 700; color: #8B92A8;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-bottom: 10px;
+}
+.scan-result-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  margin-bottom: 8px;
+}
+.scan-result-row img {
+  width: 44px; height: 61px;
+  object-fit: cover; border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+.scan-result-info { flex: 1; min-width: 0; }
+.scan-result-name {
+  font-size: 14px; font-weight: 700; color: #FAF7F2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.scan-result-id { font-size: 12px; color: #8B92A8; margin-top: 2px; }
+.scan-result-open {
+  flex-shrink: 0;
+  font-size: 12px; font-weight: 700; color: #F59E0B;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.3);
+  padding: 7px 12px; border-radius: 8px;
+}
+.scan-no-match {
+  text-align: center; padding: 12px 4px 4px;
+  color: #8B92A8; font-size: 13px;
+}
+.scan-retry-btn {
+  display: block; width: 100%;
+  margin-top: 12px;
+  background: rgba(255,255,255,0.06);
+  color: #FAF7F2; border: 1px solid rgba(255,255,255,0.1);
+  padding: 11px; border-radius: 10px; font-size: 13px; font-weight: 700;
+}
+
 /* ===== Market prices section ===== */
 .prices-section {
   margin-top: 16px; padding: 14px;
@@ -2093,7 +2280,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v26.0</div>
+          <div class="subtitle">Card Database · v26.1</div>
         </div>
       </div>
       <div class="header-controls">
@@ -2262,6 +2449,10 @@ select.listing-input {
       <button class="sort-btn" data-sort="qty">Quantity</button>
       <button class="sort-btn" data-sort="id">Card ID</button>
     </div>
+    <button class="scan-card-btn" id="scan-card-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+      Scan
+    </button>
     <button class="clear-collection-btn" id="clear-collection-btn">Clear all</button>
   </div>
 
@@ -2308,6 +2499,41 @@ select.listing-input {
       <div class="modal-id" id="modal-id"></div>
     </div>
     <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- v26.1: Scan Card camera modal -->
+<div class="scan-modal-backdrop" id="scan-modal-backdrop">
+  <div class="scan-modal-header">
+    <div class="scan-modal-title">Scan Card</div>
+    <button class="scan-modal-close" id="scan-modal-close" aria-label="Close">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="scan-viewport" id="scan-viewport">
+    <video class="scan-video" id="scan-video" autoplay playsinline muted></video>
+    <canvas class="scan-canvas-preview" id="scan-canvas-preview"></canvas>
+    <div class="scan-guide-box" id="scan-guide-box"></div>
+    <div class="scan-status" id="scan-status"><span class="spin"></span><span id="scan-status-text">Reading card…</span></div>
+    <div class="scan-hint" id="scan-hint">Position card in frame</div>
+    <div class="scan-error" id="scan-error" style="display:none">
+      <div class="title">Camera unavailable</div>
+      <div class="sub" id="scan-error-sub">Allow camera access to scan a card.</div>
+      <button id="scan-error-retry">Try again</button>
+    </div>
+  </div>
+
+  <div class="scan-controls" id="scan-controls">
+    <button class="scan-shutter-btn" id="scan-shutter-btn" aria-label="Capture">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#1A1208" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
+    </button>
+  </div>
+
+  <div class="scan-results" id="scan-results">
+    <div class="scan-results-title">Is this your card?</div>
+    <div id="scan-results-list"></div>
+    <button class="scan-retry-btn" id="scan-retry-btn">Scan again</button>
   </div>
 </div>
 
@@ -5317,6 +5543,359 @@ function openModal(idx) {
   hires.src = modalFull;
 }
 
+// ===== v26.1: Scan Card (camera OCR) =====
+// Opens a fullscreen camera viewport with a card-shaped alignment guide.
+// On capture: crop to the guide box, run Tesseract OCR on the crop, then
+// match the recognized text against the existing `cards` / `cardById` index
+// (same card-ID shape already used by search — see CARD_ID_BASE_RE in
+// getFiltered()). OCR is on-device only — no server calls, no new deps
+// beyond Tesseract.js (already loaded via CDN tag near supabase-js).
+//
+// Matching is intentionally tolerant: OCR on small, foiled, angle-photographed
+// card text will often misread a character or two, so we always present the
+// top candidates (with thumbnails) rather than silently committing to a
+// single guess. The user taps the correct one to open it.
+
+let scanStream = null;
+let scanOcrWorker = null;
+let scanBusy = false;
+
+function openScanModal() {
+  document.getElementById('scan-modal-backdrop').classList.add('open');
+  document.getElementById('scan-results').classList.remove('show');
+  document.getElementById('scan-error').style.display = 'none';
+  document.getElementById('scan-controls').style.display = 'flex';
+  document.getElementById('scan-hint').style.display = 'block';
+  document.getElementById('scan-guide-box').style.display = 'block';
+  const video = document.getElementById('scan-video');
+  video.style.display = 'block';
+  document.getElementById('scan-canvas-preview').style.display = 'none';
+  if (history.state?.type !== 'modal') history.pushState({ type: 'modal' }, '');
+  startScanCamera();
+}
+
+function closeScanModal() {
+  const wasOpen = document.getElementById('scan-modal-backdrop').classList.contains('open');
+  document.getElementById('scan-modal-backdrop').classList.remove('open');
+  stopScanCamera();
+  if (wasOpen && history.state?.type === 'modal') {
+    history.replaceState({ type: 'background' }, '');
+  }
+}
+
+async function startScanCamera() {
+  const video = document.getElementById('scan-video');
+  const errBox = document.getElementById('scan-error');
+  const errSub = document.getElementById('scan-error-sub');
+  try {
+    // Prefer rear camera on phones/tablets
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 1280 } },
+      audio: false,
+    });
+    video.srcObject = scanStream;
+    errBox.style.display = 'none';
+  } catch (e) {
+    console.error('Camera error:', e);
+    errSub.textContent = (e?.name === 'NotAllowedError')
+      ? 'Camera permission was denied. Enable it in your browser/app settings.'
+      : 'Could not access the camera on this device.';
+    errBox.style.display = 'block';
+    document.getElementById('scan-controls').style.display = 'none';
+    document.getElementById('scan-hint').style.display = 'none';
+    document.getElementById('scan-guide-box').style.display = 'none';
+  }
+}
+
+function stopScanCamera() {
+  if (scanStream) {
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
+  const video = document.getElementById('scan-video');
+  if (video) video.srcObject = null;
+}
+
+function setScanStatus(show, text) {
+  const el = document.getElementById('scan-status');
+  if (text) document.getElementById('scan-status-text').textContent = text;
+  el.classList.toggle('show', !!show);
+}
+
+// Crops the video frame to the on-screen guide box, returning a canvas.
+// The guide box is centered, 64% of viewport width, card aspect ratio —
+// this maps the visible crop rectangle onto actual video pixel coordinates
+// (which may differ in resolution/aspect from the displayed <video> element).
+function captureGuideCrop() {
+  const video = document.getElementById('scan-video');
+  const viewport = document.getElementById('scan-viewport');
+  const guide = document.getElementById('scan-guide-box');
+
+  const vRect = viewport.getBoundingClientRect();
+  const gRect = guide.getBoundingClientRect();
+
+  // video is `object-fit: cover` inside viewport — figure out the scale
+  // factor between displayed size and actual video pixel size.
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const dispW = vRect.width, dispH = vRect.height;
+  const videoAspect = vw / vh, dispAspect = dispW / dispH;
+
+  let scale, offsetX = 0, offsetY = 0;
+  if (videoAspect > dispAspect) {
+    // video is wider than display — cropped on left/right
+    scale = vh / dispH;
+    offsetX = (vw - dispW * scale) / 2;
+  } else {
+    // video is taller than display — cropped on top/bottom
+    scale = vw / dispW;
+    offsetY = (vh - dispH * scale) / 2;
+  }
+
+  const cropX = offsetX + (gRect.left - vRect.left) * scale;
+  const cropY = offsetY + (gRect.top - vRect.top) * scale;
+  const cropW = gRect.width * scale;
+  const cropH = gRect.height * scale;
+
+  // Upscale modestly — small printed card-code text benefits from more pixels
+  const UPSCALE = 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(cropW * UPSCALE);
+  canvas.height = Math.round(cropH * UPSCALE);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+  applyOcrPreprocessing(ctx, canvas.width, canvas.height);
+  return canvas;
+}
+
+// Grayscale + contrast boost in-place. This is the single highest-leverage
+// accuracy improvement for OCR on small printed text (more impactful than
+// any matching-side fuzziness) — phone camera photos of glossy/foiled cards
+// tend to be low-contrast and color-noisy, which confuses character
+// recognition more than upscaling alone fixes.
+function applyOcrPreprocessing(ctx, w, h) {
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const d = imgData.data;
+  const CONTRAST = 1.4; // >1 increases contrast around mid-gray
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    let boosted = (gray - 128) * CONTRAST + 128;
+    boosted = Math.max(0, Math.min(255, boosted));
+    d[i] = d[i + 1] = d[i + 2] = boosted;
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+async function getScanOcrWorker() {
+  if (scanOcrWorker) return scanOcrWorker;
+  setScanStatus(true, 'Loading OCR…');
+  scanOcrWorker = await Tesseract.createWorker('eng');
+  return scanOcrWorker;
+}
+
+async function captureAndScan() {
+  if (scanBusy) return;
+  scanBusy = true;
+  document.getElementById('scan-shutter-btn').disabled = true;
+  document.getElementById('scan-hint').style.display = 'none';
+  setScanStatus(true, 'Reading card…');
+
+  try {
+    const canvas = captureGuideCrop();
+
+    // Freeze the frame visually so the user isn't staring at a live blur
+    // while OCR runs.
+    const preview = document.getElementById('scan-canvas-preview');
+    const video = document.getElementById('scan-video');
+    preview.width = video.videoWidth;
+    preview.height = video.videoHeight;
+    preview.getContext('2d').drawImage(video, 0, 0, preview.width, preview.height);
+    preview.style.display = 'block';
+    video.style.display = 'none';
+
+    const worker = await getScanOcrWorker();
+    setScanStatus(true, 'Reading card…');
+    const { data } = await worker.recognize(canvas);
+    const rawText = data?.text || '';
+
+    const matches = matchCardFromOcrText(rawText);
+    showScanResults(matches, rawText);
+  } catch (e) {
+    console.error('Scan error:', e);
+    showScanResults([], '');
+  } finally {
+    setScanStatus(false);
+    document.getElementById('scan-shutter-btn').disabled = false;
+    scanBusy = false;
+  }
+}
+
+// Levenshtein distance — used to fuzzy-match noisy OCR output against the
+// small universe of known card IDs (cheap: IDs are short, ~4-9 chars).
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  const al = a.length, bl = b.length;
+  if (al === 0) return bl;
+  if (bl === 0) return al;
+  const dp = new Array(bl + 1);
+  for (let j = 0; j <= bl; j++) dp[j] = j;
+  for (let i = 1; i <= al; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= bl; j++) {
+      const tmp = dp[j];
+      dp[j] = Math.min(
+        dp[j] + 1,
+        dp[j - 1] + 1,
+        prev + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+      prev = tmp;
+    }
+  }
+  return dp[bl];
+}
+
+// Parses a cleaned alphanumeric blob into the canonical "LETTERS+2digits-3digits"
+// shape (e.g. "OP09-061"), correcting OCR's O/0 and I/1/L confusion based on
+// POSITION rather than blindly substituting every occurrence of a character.
+// One Piece TCG card IDs are always: 1-4 letters followed by exactly 5 digits.
+// Anchoring on that shape lets us fix the letter zone and digit zone
+// independently — a leading "O" in "OP" should stay a letter, while a "O"
+// inside the digit run should become "0". A naive global replace gets this
+// wrong (see v26.1 test failures during development).
+function parseIdToken(raw) {
+  const alnum = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (alnum.length < 6 || alnum.length > 9) return null;
+  const digitZone = alnum.slice(-5).replace(/O/g, '0').replace(/[IL]/g, '1');
+  const letterZone = alnum.slice(0, -5).replace(/0/g, 'O').replace(/1/g, 'I');
+  if (!/^[A-Z]{1,4}$/.test(letterZone)) return null;
+  if (!/^\d{5}$/.test(digitZone)) return null;
+  return `${letterZone}${digitZone.slice(0, 2)}-${digitZone.slice(2)}`;
+}
+
+// Extracts ID-like tokens from raw OCR text (e.g. "0P09-061", "OPO9 061")
+// and tries to resolve each against cardById, tolerating common misreads.
+// The pattern itself is loose about O/0 and I/1/L confusion since OCR can
+// misread either direction (a printed "0" as "O" or a printed "O" as "0").
+function extractIdCandidates(rawText) {
+  const lines = rawText.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  const candidates = new Set();
+  // Loose pattern: 2-4 alnum "letters" (allowing O/0/I/1/L mix-ups), optional
+  // digits, separator, then 3 alnum "digits" (same mix-up tolerance).
+  const loosePattern = /[A-Za-z0-9]{2,4}\s?-?\s?[A-Za-z0-9]{2}\s?-?\s?[A-Za-z0-9]{3}/g;
+  for (const line of lines) {
+    const found = line.match(loosePattern) || [];
+    for (const f of found) candidates.add(f);
+  }
+  // Also scan the whole blob in case line-splitting broke a token
+  const wholeFound = rawText.match(loosePattern) || [];
+  for (const f of wholeFound) candidates.add(f);
+  // Cap candidates — the loose pattern can match incidental alphanumeric runs
+  // in ability text. This bounds worst-case fuzzy-match cost on low-end devices.
+  return Array.from(candidates).slice(0, 15);
+}
+
+// Resolves a raw OCR text blob into a ranked list of candidate cards.
+// Returns up to 3 cards, best match first.
+function matchCardFromOcrText(rawText) {
+  if (!rawText || !rawText.trim()) return [];
+
+  const idCandidates = extractIdCandidates(rawText);
+  const scored = new Map(); // cardId -> best score (lower = better)
+
+  // 1) Exact / near-exact ID match against known IDs
+  for (const raw of idCandidates) {
+    const parsed = parseIdToken(raw);
+    let exactHit = false;
+    if (parsed && cardById[parsed]) {
+      scored.set(parsed, Math.min(scored.get(parsed) ?? 99, 0));
+      exactHit = true;
+    }
+    // No exact hit — fuzzy match against all card IDs within edit-distance 2
+    if (!exactHit) {
+      const cleaned = (parsed || raw.replace(/\s+/g, '')).toUpperCase();
+      let bestId = null, bestDist = 99;
+      for (const id of Object.keys(cardById)) {
+        if (Math.abs(id.length - cleaned.length) > 2) continue; // cheap prefilter
+        const d = levenshtein(id, cleaned);
+        if (d < bestDist) { bestDist = d; bestId = id; }
+      }
+      if (bestId && bestDist <= 2) {
+        scored.set(bestId, Math.min(scored.get(bestId) ?? 99, bestDist + 1));
+      }
+    }
+  }
+
+  // 2) Name-based fallback: check if any card name appears (substring) in
+  // the OCR text. Helps when the code line was unreadable but the title
+  // printed in large text wasn't.
+  if (scored.size < 3) {
+    const lowerText = rawText.toLowerCase().replace(/[^a-z0-9.\s]/g, ' ');
+    for (const c of cards) {
+      const nameLower = c.name.toLowerCase();
+      if (nameLower.length >= 4 && lowerText.includes(nameLower)) {
+        scored.set(c.id, Math.min(scored.get(c.id) ?? 99, 3));
+      }
+    }
+  }
+
+  return Array.from(scored.entries())
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 3)
+    .map(([id]) => cardById[id])
+    .filter(Boolean);
+}
+
+function showScanResults(matchedCards, rawText) {
+  const resultsBox = document.getElementById('scan-results');
+  const listEl = document.getElementById('scan-results-list');
+  document.getElementById('scan-controls').style.display = 'none';
+
+  if (!matchedCards.length) {
+    listEl.innerHTML = `<div class="scan-no-match">Couldn't read that card. Try better lighting, fill the frame, and avoid glare on the foil.</div>`;
+  } else {
+    listEl.innerHTML = matchedCards.map(card => `
+      <div class="scan-result-row" data-card-id="${escapeHtml(card.id)}">
+        <img src="${imageFor(card, 120)}" alt="${escapeHtml(card.name)}" onerror="this.style.visibility='hidden'" />
+        <div class="scan-result-info">
+          <div class="scan-result-name">${escapeHtml(card.name)}</div>
+          <div class="scan-result-id">${escapeHtml(card.id)}</div>
+        </div>
+        <button class="scan-result-open" data-card-id="${escapeHtml(card.id)}">Open</button>
+      </div>
+    `).join('');
+    listEl.querySelectorAll('[data-card-id]').forEach(el => {
+      el.addEventListener('click', () => {
+        const card = cardById[el.dataset.cardId];
+        if (card) openScannedCard(card);
+      });
+    });
+  }
+  resultsBox.classList.add('show');
+}
+
+// Opens a card found via scan in the standard card-detail modal. Sets
+// window._filteredCards to a single-item list so openModal(0) works,
+// per the established pattern (see "window._filteredCards" in known gotchas).
+function openScannedCard(card) {
+  closeScanModal();
+  const idx = cards.findIndex(c => c.id === card.id);
+  if (idx < 0) return;
+  window._filteredCards = [card];
+  openModal(0);
+}
+
+document.getElementById('scan-card-btn')?.addEventListener('click', openScanModal);
+document.getElementById('scan-modal-close')?.addEventListener('click', closeScanModal);
+document.getElementById('scan-error-retry')?.addEventListener('click', startScanCamera);
+document.getElementById('scan-shutter-btn')?.addEventListener('click', captureAndScan);
+document.getElementById('scan-retry-btn')?.addEventListener('click', () => {
+  document.getElementById('scan-results').classList.remove('show');
+  document.getElementById('scan-controls').style.display = 'flex';
+  document.getElementById('scan-hint').style.display = 'block';
+  document.getElementById('scan-video').style.display = 'block';
+  document.getElementById('scan-canvas-preview').style.display = 'none';
+});
+
 // ===== Collection controls in card detail =====
 // Card detail: shows three list controls (Collection / WTB / WTS).
 // When signed out, shows a sign-in prompt instead — all three lists require auth.
@@ -6284,6 +6863,13 @@ async function openSellerView(sellerId) {
 // When user presses back: popstate fires, we close the current "layer" without exiting the app.
 // At the root (main page with no pushed state), back will exit normally.
 window.addEventListener('popstate', () => {
+  // If scan modal is open, close it first (also stops the camera stream)
+  const scanBackdrop = document.getElementById('scan-modal-backdrop');
+  if (scanBackdrop && scanBackdrop.classList.contains('open')) {
+    scanBackdrop.classList.remove('open');
+    stopScanCamera();
+    return;
+  }
   // If auth modal is open, close it first
   const authBackdrop = document.getElementById('auth-modal-backdrop');
   if (authBackdrop && authBackdrop.classList.contains('open')) {
