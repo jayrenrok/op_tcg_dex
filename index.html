@@ -13,20 +13,20 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v26.2 -->
+<!-- build: v26.3 -->
 <!-- v26.1: Scan Card (camera + on-device OCR) feature added -->
-<!-- v26.2: Fixed Scan Card matching — extractIdCandidates no longer matches
-     across unrelated words (was missing IDs printed inside label text like
-     "Number: OP05-119"); name-only fallback now disambiguates same-named
-     reprints using visible cost/power instead of guessing by array order;
-     surfaces "ambiguous" instead of a wrong guess when nothing disambiguates
-     a popular character with many printings. See section "v26.1: Scan Card
-     (camera OCR)" in JS. -->
+<!-- v26.2: Fixed OCR matching bugs (word-boundary extraction, cost/power
+     disambiguation) — superseded by v26.3, kept here for history. -->
+<!-- v26.3: Replaced OCR entirely with perceptual image-hash matching.
+     Real-world testing showed OCR wasn't reliable enough (small printed
+     codes under foil glare, same-named reprints). Scan now matches the
+     photo against card ARTWORK fingerprints instead of reading text — see
+     "v26.3: Image-hash matching" in JS. Requires card_hashes.json (built
+     by the separate generate-hashes.js script — see scan-hash-generator/
+     README.md) to be present alongside all_cards.json; until that file is
+     uploaded, Scan will say so rather than fail silently. -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<!-- v26.1: Tesseract.js for on-device OCR (Scan Card feature). Loaded lazily-used
-     but tag is here so the network fetch can warm in the background. -->
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@1,600&display=swap');
 
@@ -2288,7 +2288,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v26.2</div>
+          <div class="subtitle">Card Database · v26.3</div>
         </div>
       </div>
       <div class="header-controls">
@@ -5550,21 +5550,20 @@ function openModal(idx) {
   hires.src = modalFull;
 }
 
-// ===== v26.1: Scan Card (camera OCR) =====
+// ===== Scan Card (camera + image-hash matching) =====
 // Opens a fullscreen camera viewport with a card-shaped alignment guide.
-// On capture: crop to the guide box, run Tesseract OCR on the crop, then
-// match the recognized text against the existing `cards` / `cardById` index
-// (same card-ID shape already used by search — see CARD_ID_BASE_RE in
-// getFiltered()). OCR is on-device only — no server calls, no new deps
-// beyond Tesseract.js (already loaded via CDN tag near supabase-js).
+// On capture: crop to the guide box, then match it against a database of
+// card artwork fingerprints (see "v26.3: Image-hash matching" below for
+// the matching implementation — captureGuideCrop here only handles the
+// camera/viewport geometry, shared by both the original OCR version and
+// the current image-hash version).
 //
-// Matching is intentionally tolerant: OCR on small, foiled, angle-photographed
-// card text will often misread a character or two, so we always present the
-// top candidates (with thumbnails) rather than silently committing to a
-// single guess. The user taps the correct one to open it.
+// Matching is intentionally tolerant: a phone photo of a glossy/foiled card
+// will never match a flat reference scan perfectly, so we always present
+// the top candidates (with thumbnails) rather than silently committing to
+// a single guess. The user taps the correct one to open it.
 
 let scanStream = null;
-let scanOcrWorker = null;
 let scanBusy = false;
 
 function openScanModal() {
@@ -5579,6 +5578,10 @@ function openScanModal() {
   document.getElementById('scan-canvas-preview').style.display = 'none';
   if (history.state?.type !== 'modal') history.pushState({ type: 'modal' }, '');
   startScanCamera();
+  // Warm the reference hash fetch now (small file, ~hundreds of KB) so it's
+  // likely already loaded by the time the user taps capture, rather than
+  // adding that fetch's latency to the perceived "scanning" time.
+  loadCardHashes();
 }
 
 function closeScanModal() {
@@ -5663,14 +5666,16 @@ function captureGuideCrop() {
   const cropW = gRect.width * scale;
   const cropH = gRect.height * scale;
 
-  // Upscale modestly — small printed card-code text benefits from more pixels
-  const UPSCALE = 2;
+  // No upscaling here — the perceptual hash function downsamples to a tiny
+  // 17x16 grid regardless of input size, so cropping at native resolution
+  // and letting drawImage do one clean resize is both simpler and avoids an
+  // unnecessary extra resampling step that could blur the gradient signal
+  // the hash depends on.
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(cropW * UPSCALE);
-  canvas.height = Math.round(cropH * UPSCALE);
+  canvas.width = Math.round(cropW);
+  canvas.height = Math.round(cropH);
   const ctx = canvas.getContext('2d');
   ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
-  applyOcrPreprocessing(ctx, canvas.width, canvas.height);
   return canvas;
 }
 
@@ -5679,24 +5684,135 @@ function captureGuideCrop() {
 // any matching-side fuzziness) — phone camera photos of glossy/foiled cards
 // tend to be low-contrast and color-noisy, which confuses character
 // recognition more than upscaling alone fixes.
-function applyOcrPreprocessing(ctx, w, h) {
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const d = imgData.data;
-  const CONTRAST = 1.4; // >1 increases contrast around mid-gray
-  for (let i = 0; i < d.length; i += 4) {
-    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    let boosted = (gray - 128) * CONTRAST + 128;
-    boosted = Math.max(0, Math.min(255, boosted));
-    d[i] = d[i + 1] = d[i + 2] = boosted;
-  }
-  ctx.putImageData(imgData, 0, 0);
+// ===== v26.3: Image-hash matching (replaces OCR) =====
+// Real-world testing of the OCR approach (v26.1-v26.2) showed it wasn't
+// reliable enough: small printed card codes are genuinely hard to read
+// under foil glare and camera angle, and One Piece TCG's many same-named
+// reprints meant OCR misreads often resolved to a plausible-looking but
+// wrong card. This replaces OCR entirely with PERCEPTUAL IMAGE HASHING —
+// matching the scanned photo against a database of card ARTWORK fingerprints
+// instead of trying to read text. This sidesteps both problems: artwork
+// differs between every printing even when the name doesn't, and a
+// "dHash" (difference hash) is far more tolerant of lighting/glare than
+// character recognition is.
+//
+// The reference database (card_hashes.json — one ~16-character-average hex
+// string per card, keyed by card ID) is generated OFFLINE by
+// generate-hashes.js (ships alongside this app) since hashing all ~4,500
+// card images requires bulk network access. It's fetched once at startup,
+// same pattern as prices.json.
+//
+// IMPORTANT: the hashing math below MUST stay identical to dHashFromBuffer()
+// in generate-hashes.js — both sides hash images the same way so Hamming
+// distance comparisons are meaningful. If you change one, change both, and
+// regenerate card_hashes.json.
+
+const HASH_SIZE = 16; // produces a 16*16 = 256-bit hash (64 hex chars)
+let cardHashes = null;       // { cardId: hexHashString }
+let cardHashesLoadPromise = null;
+
+// Loads the precomputed reference hash database. Safe to call repeatedly —
+// only fetches once. If the file isn't there yet (e.g. not generated/
+// uploaded yet), scanning will gracefully report "not available" rather
+// than throw, same defensive pattern as the existing prices.json loader.
+function loadCardHashes() {
+  if (cardHashes) return Promise.resolve(cardHashes);
+  if (cardHashesLoadPromise) return cardHashesLoadPromise;
+  cardHashesLoadPromise = fetch('card_hashes.json', { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      cardHashes = data || {};
+      return cardHashes;
+    })
+    .catch(e => {
+      console.error('card_hashes.json load failed:', e);
+      cardHashes = {};
+      return cardHashes;
+    });
+  return cardHashesLoadPromise;
 }
 
-async function getScanOcrWorker() {
-  if (scanOcrWorker) return scanOcrWorker;
-  setScanStatus(true, 'Loading OCR…');
-  scanOcrWorker = await Tesseract.createWorker('eng');
-  return scanOcrWorker;
+// Computes a dHash from a canvas, returning the same hex format as
+// generate-hashes.js. Resizes to (HASH_SIZE+1) x HASH_SIZE grayscale, then
+// records whether each pixel is brighter than its neighbor to the right.
+function dHashFromCanvas(canvas) {
+  const w = HASH_SIZE + 1, h = HASH_SIZE;
+  const small = document.createElement('canvas');
+  small.width = w; small.height = h;
+  const sctx = small.getContext('2d');
+  sctx.drawImage(canvas, 0, 0, w, h);
+  const { data } = sctx.getImageData(0, 0, w, h);
+
+  // Grayscale each pixel (same luminance weights as generate-hashes.js's
+  // sharp .grayscale() call uses internally) then compare adjacent pixels.
+  const gray = new Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+    gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+  }
+
+  const bits = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w - 1; x++) {
+      const left = gray[y * w + x];
+      const right = gray[y * w + x + 1];
+      bits.push(right > left ? 1 : 0);
+    }
+  }
+  let hex = '';
+  for (let i = 0; i < bits.length; i += 4) {
+    const nibble = (bits[i] << 3) | (bits[i + 1] << 2) | (bits[i + 2] << 1) | bits[i + 3];
+    hex += nibble.toString(16);
+  }
+  return hex;
+}
+
+// Hamming distance between two equal-length hex hash strings — counts
+// differing bits by comparing 4 bits (one hex digit) at a time via XOR.
+function hammingHex(a, b) {
+  if (a.length !== b.length) return Infinity;
+  let dist = 0;
+  for (let i = 0; i < a.length; i++) {
+    let x = parseInt(a[i], 16) ^ parseInt(b[i], 16);
+    while (x) { dist += x & 1; x >>= 1; }
+  }
+  return dist;
+}
+
+// Matches a captured card-crop canvas against the reference hash database.
+// Returns up to 3 candidates ranked by visual similarity (closest first),
+// or an "unavailable" result if the reference database hasn't been
+// generated/uploaded yet.
+async function matchCardFromImage(canvas) {
+  const hashes = await loadCardHashes();
+  if (!hashes || Object.keys(hashes).length === 0) {
+    return { matches: [], unavailable: true };
+  }
+
+  const scanHash = dHashFromCanvas(canvas);
+  const HASH_BITS = HASH_SIZE * HASH_SIZE; // 256
+
+  const distances = [];
+  for (const id in hashes) {
+    const card = cardById[id];
+    if (!card) continue; // hash db may reference an id not in current cards (stale)
+    const d = hammingHex(scanHash, hashes[id]);
+    distances.push({ card, distance: d });
+  }
+  distances.sort((a, b) => a.distance - b.distance);
+
+  // A distance under ~25% of total bits is a meaningful visual match; above
+  // that, the closest "match" found is likely just the least-different
+  // card in the whole database, not an actual match — better to say so
+  // than present a confident-looking wrong guess.
+  const CONFIDENT_THRESHOLD = HASH_BITS * 0.25;
+  const top = distances.slice(0, 3);
+  const confident = top.length > 0 && top[0].distance <= CONFIDENT_THRESHOLD;
+
+  if (!confident) {
+    return { matches: [], unavailable: false, noConfidentMatch: true };
+  }
+  return { matches: top.map(t => t.card), unavailable: false };
 }
 
 async function captureAndScan() {
@@ -5704,13 +5820,13 @@ async function captureAndScan() {
   scanBusy = true;
   document.getElementById('scan-shutter-btn').disabled = true;
   document.getElementById('scan-hint').style.display = 'none';
-  setScanStatus(true, 'Reading card…');
+  setScanStatus(true, 'Matching card…');
 
   try {
     const canvas = captureGuideCrop();
 
     // Freeze the frame visually so the user isn't staring at a live blur
-    // while OCR runs.
+    // while matching runs.
     const preview = document.getElementById('scan-canvas-preview');
     const video = document.getElementById('scan-video');
     preview.width = video.videoWidth;
@@ -5719,16 +5835,11 @@ async function captureAndScan() {
     preview.style.display = 'block';
     video.style.display = 'none';
 
-    const worker = await getScanOcrWorker();
-    setScanStatus(true, 'Reading card…');
-    const { data } = await worker.recognize(canvas);
-    const rawText = data?.text || '';
-
-    const result = matchCardFromOcrText(rawText);
-    showScanResults(result, rawText);
+    const result = await matchCardFromImage(canvas);
+    showScanResults(result);
   } catch (e) {
     console.error('Scan error:', e);
-    showScanResults({ matches: [], ambiguous: false }, '');
+    showScanResults({ matches: [], unavailable: false });
   } finally {
     setScanStatus(false);
     document.getElementById('scan-shutter-btn').disabled = false;
@@ -5736,215 +5847,22 @@ async function captureAndScan() {
   }
 }
 
-// Levenshtein distance — used to fuzzy-match noisy OCR output against the
-// small universe of known card IDs (cheap: IDs are short, ~4-9 chars).
-function levenshtein(a, b) {
-  if (a === b) return 0;
-  const al = a.length, bl = b.length;
-  if (al === 0) return bl;
-  if (bl === 0) return al;
-  const dp = new Array(bl + 1);
-  for (let j = 0; j <= bl; j++) dp[j] = j;
-  for (let i = 1; i <= al; i++) {
-    let prev = dp[0];
-    dp[0] = i;
-    for (let j = 1; j <= bl; j++) {
-      const tmp = dp[j];
-      dp[j] = Math.min(
-        dp[j] + 1,
-        dp[j - 1] + 1,
-        prev + (a[i - 1] === b[j - 1] ? 0 : 1)
-      );
-      prev = tmp;
-    }
-  }
-  return dp[bl];
-}
-
-// Parses a cleaned alphanumeric blob into the canonical "LETTERS+2digits-3digits"
-// shape (e.g. "OP09-061"), correcting OCR's O/0 and I/1/L confusion based on
-// POSITION rather than blindly substituting every occurrence of a character.
-// One Piece TCG card IDs are always: 1-4 letters followed by exactly 5 digits,
-// sometimes with a trailing print-variant suffix (parallel/alt-art/promo —
-// e.g. "OP05-119_p1" or the in-print "EB" suffix some alt-arts carry). We
-// match the base 1-4-letters+5-digits shape and ignore anything trailing it,
-// since cardById is keyed by the base ID for lookups here (variant suffixes
-// are a display-only refinement the scan flow doesn't need to resolve).
-function parseIdToken(raw) {
-  const alnum = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-  if (alnum.length < 6) return null;
-  // Find the first run of exactly 1-4 letters followed by exactly 5 digits
-  // anywhere in the token (handles trailing suffix noise like "EB", "P1").
-  const m = alnum.match(/^([A-Z]{1,4})(\d{5}|[O0-9]{2}-?[O0-9I1L]{3})/) ||
-            alnum.match(/^([A-Z]{1,4})([A-Z0-9]{5})/);
-  if (!m) return null;
-  const letterZone = m[1].replace(/0/g, 'O').replace(/1/g, 'I');
-  const digitZoneRaw = alnum.slice(m[1].length, m[1].length + 5);
-  const digitZone = digitZoneRaw.replace(/O/g, '0').replace(/[IL]/g, '1');
-  if (!/^[A-Z]{1,4}$/.test(letterZone)) return null;
-  if (!/^\d{5}$/.test(digitZone)) return null;
-  return `${letterZone}${digitZone.slice(0, 2)}-${digitZone.slice(2)}`;
-}
-
-// Extracts ID-like tokens from raw OCR text (e.g. "0P09-061", "OPO9 061",
-// "Number OP12-037"). Works word-by-word rather than with a single sweeping
-// regex, because a regex with `\s?` standing in for the ID's internal
-// separator will happily match ACROSS unrelated words — e.g. on the text
-// "Number OP12-037" a naive scan matched "Number OP12" (treating the space
-// after "Numb-er" as the separator) before it ever reached the real ID.
-// That bug caused real scans to never find IDs printed inside surrounding
-// label text (very common — sites print "Number: OP05-119"), which pushed
-// matching down to the much weaker name-only fallback. Splitting on
-// whitespace first means each candidate is a token that was already
-// whitespace-bounded in the source text, plus adjacent-pair joins to
-// recover tokens OCR accidentally split on a space (e.g. "OPO9 O61").
-function extractIdCandidates(rawText) {
-  const words = rawText.split(/\s+/).filter(Boolean);
-  const candidates = new Set();
-  const idShape = /^[A-Za-z0-9]{2,4}-?[A-Za-z0-9]{2}-?[A-Za-z0-9]{3}[A-Za-z0-9]{0,3}$/;
-  for (let i = 0; i < words.length; i++) {
-    const w = words[i].replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9-]+$/g, ''); // trim stray punctuation
-    if (idShape.test(w) && w.length <= 12) candidates.add(w);
-    if (i + 1 < words.length) {
-      const next = words[i + 1].replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9-]+$/g, '');
-      const combined = w + next;
-      if (idShape.test(combined) && combined.length <= 12) candidates.add(combined);
-    }
-  }
-  // Cap candidates — bounds worst-case fuzzy-match cost on low-end devices.
-  return Array.from(candidates).slice(0, 15);
-}
-
-// Extracts standalone numbers from the OCR text that plausibly correspond to
-// a printed cost or power value. Cost is a single digit in a circle
-// (top-left); power is a 3-5 digit number, usually with a comma or "K"-less
-// thousands grouping omitted (e.g. "12000", "6000"). These are printed in
-// large, high-contrast numerals — by far the most OCR-reliable text on a
-// TCG card — so they're a much stronger disambiguator between same-named
-// reprints than trying to re-read the small card code.
-function extractNumberSignals(rawText) {
-  const nums = (rawText.match(/\b\d{1,5}\b/g) || []).map(Number);
-  return new Set(nums);
-}
-
-// Resolves a raw OCR text blob into a ranked list of candidate cards.
-// Returns up to 3 cards, best match first — or an empty list if matches
-// were too ambiguous to present with any confidence (see "ambiguous"
-// handling below; this is preferable to guessing one of many same-named
-// reprints, which was the v26.1 bug reported by Jayren: scanning OP05-119
-// returned three unrelated Luffy cards because name-only ties were broken
-// by array order, not by anything visible in the photo).
-function matchCardFromOcrText(rawText) {
-  if (!rawText || !rawText.trim()) return { matches: [], ambiguous: false };
-
-  const idCandidates = extractIdCandidates(rawText);
-  const scored = new Map(); // cardId -> best score (lower = better)
-
-  // 1) Exact / near-exact ID match against known IDs — strongest signal,
-  // since a correctly-read code uniquely identifies the card.
-  for (const raw of idCandidates) {
-    const parsed = parseIdToken(raw);
-    let exactHit = false;
-    if (parsed && cardById[parsed]) {
-      scored.set(parsed, Math.min(scored.get(parsed) ?? 99, 0));
-      exactHit = true;
-    }
-    if (!exactHit) {
-      const cleaned = (parsed || raw.replace(/\s+/g, '')).toUpperCase();
-      let bestId = null, bestDist = 99;
-      for (const id of Object.keys(cardById)) {
-        if (Math.abs(id.length - cleaned.length) > 2) continue; // cheap prefilter
-        const d = levenshtein(id, cleaned);
-        if (d < bestDist) { bestDist = d; bestId = id; }
-      }
-      if (bestId && bestDist <= 2) {
-        scored.set(bestId, Math.min(scored.get(bestId) ?? 99, bestDist + 1));
-      }
-    }
-  }
-
-  // If we already have a confident ID-based match, return it without
-  // touching the noisier name-matching path at all.
-  if (scored.size > 0) {
-    const ranked = Array.from(scored.entries()).sort((a, b) => a[1] - b[1]);
-    return {
-      matches: ranked.slice(0, 3).map(([id]) => cardById[id]).filter(Boolean),
-      ambiguous: false,
-    };
-  }
-
-  // 2) Name-based fallback: the code wasn't readable, so look for the card
-  // title printed in large text. One Piece TCG reprints the same character
-  // name across many sets/rarities, so a name hit alone usually maps to
-  // MANY cards — we disambiguate using cost/power, which are large, clean
-  // numerals OCR reads far more reliably than the small printed code.
-  const lowerText = rawText.toLowerCase().replace(/[^a-z0-9.\s]/g, ' ');
-  const numberSignals = extractNumberSignals(rawText);
-  const nameMatches = [];
-  for (const c of cards) {
-    const nameLower = c.name.toLowerCase();
-    if (nameLower.length >= 4 && lowerText.includes(nameLower)) {
-      nameMatches.push(c);
-    }
-  }
-
-  if (nameMatches.length === 0) {
-    return { matches: [], ambiguous: false };
-  }
-  if (nameMatches.length === 1) {
-    return { matches: nameMatches, ambiguous: false };
-  }
-
-  // Multiple same-named cards: rank by how many of their cost/power values
-  // were also seen as standalone numbers in the OCR text.
-  const withScore = nameMatches.map(c => {
-    let hits = 0;
-    const cost = Number(c.cost);
-    const power = Number(c.power);
-    if (!Number.isNaN(cost) && numberSignals.has(cost)) hits++;
-    if (!Number.isNaN(power) && numberSignals.has(power)) hits++;
-    return { card: c, hits };
-  });
-  withScore.sort((a, b) => b.hits - a.hits);
-
-  const topHits = withScore[0].hits;
-  if (topHits > 0) {
-    // At least one candidate is corroborated by a visible cost/power —
-    // trust the ranking and return the top 3.
-    const tied = withScore.filter(w => w.hits === topHits);
-    return {
-      matches: (tied.length <= 3 ? tied : withScore).slice(0, 3).map(w => w.card),
-      ambiguous: false,
-    };
-  }
-
-  // No disambiguating signal at all — if there are only a handful of
-  // same-named cards, showing them as "pick one" candidates is still
-  // useful. If there are many (the common case for popular characters
-  // like Luffy), presenting any 3 as if they were good guesses is
-  // actively misleading, so we surface this as ambiguous instead.
-  if (nameMatches.length <= 4) {
-    return { matches: nameMatches.slice(0, 3), ambiguous: false };
-  }
-  return { matches: [], ambiguous: true, ambiguousName: nameMatches[0].name, ambiguousCount: nameMatches.length };
-}
-
-function showScanResults(result, rawText) {
+function showScanResults(result) {
   const resultsBox = document.getElementById('scan-results');
   const listEl = document.getElementById('scan-results-list');
   document.getElementById('scan-controls').style.display = 'none';
 
   const matchedCards = result?.matches || [];
 
-  if (result?.ambiguous) {
-    // Name was readable but it's a popular character with many reprints,
-    // and nothing else in the photo (cost/power) narrowed it down. Guessing
-    // among dozens of same-named cards would be misleading, so point the
-    // user at search instead — they likely know the set/rarity even if the
-    // scan couldn't tell.
-    listEl.innerHTML = `<div class="scan-no-match">Found "${escapeHtml(result.ambiguousName)}", but there are ${result.ambiguousCount} printings of this card and the code wasn't readable. Try filling the frame with just the card, avoiding glare — or search "${escapeHtml(result.ambiguousName)}" instead.</div>`;
+  if (result?.unavailable) {
+    // card_hashes.json hasn't been generated/uploaded yet — scanning has
+    // nothing to compare against. This is a setup issue, not a bad photo,
+    // so the message is different from "couldn't match."
+    listEl.innerHTML = `<div class="scan-no-match">Scan isn't set up yet — the card reference database hasn't been uploaded. Search by name or ID instead for now.</div>`;
+  } else if (result?.noConfidentMatch) {
+    listEl.innerHTML = `<div class="scan-no-match">Couldn't find a confident match. Try filling the frame with just the card, flat lighting with no glare, and holding the camera steady and parallel to the card.</div>`;
   } else if (!matchedCards.length) {
-    listEl.innerHTML = `<div class="scan-no-match">Couldn't read that card. Try better lighting, fill the frame, and avoid glare on the foil.</div>`;
+    listEl.innerHTML = `<div class="scan-no-match">Couldn't match that card. Try better lighting and avoid glare on the foil.</div>`;
   } else {
     listEl.innerHTML = matchedCards.map(card => `
       <div class="scan-result-row" data-card-id="${escapeHtml(card.id)}">
