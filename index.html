@@ -13,7 +13,29 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v26.6 -->
+<!-- build: v26.7 -->
+<!-- v26.7: Fixed the actual root cause of inaccurate scan matching.
+     dHashFromCanvas() was resizing the captured crop (often ~700-1000px)
+     straight down to 17x16 using one drawImage() call. Browsers use a
+     much cruder filter for large single-step downscales than sharp's
+     fit:'fill' resize (used server-side in generate-hashes.js) does —
+     this was silently destroying the brightness-gradient detail dHash
+     depends on, in a way that varied by device/browser. That's why
+     results were inconsistent: sometimes the correct card's distance
+     got pushed above threshold ("no confident match"), sometimes a
+     visually-similar wrong card scored closer than the right one.
+     Fix: dHashFromCanvas now downscales in repeated halving steps (the
+     standard way to make drawImage approximate proper area-averaging)
+     and does a manual box-filter average for the final 17x16 step, so
+     the client-side hash is actually comparable to the server-side one.
+     The hash ALGORITHM and card_hashes.json are unchanged — only how
+     the live photo is shrunk before hashing. Also added a small
+     collapsible "Scan debug" readout under every scan result (tap to
+     expand) showing the top 5 closest cards and their distances, so
+     they can be checked on a phone without remote devtools. v26.5's
+     console diagnostic log kept for now — confirm real distances drop
+     before removing. -->
+
 <!-- v26.6: Fixed "Scan again" sometimes not working at all. The retry
      button only toggled UI panel visibility back on; it never verified the
      camera MediaStream was still actually live or re-attached to the
@@ -2323,7 +2345,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v26.6</div>
+          <div class="subtitle">Card Database · v26.7</div>
         </div>
       </div>
       <div class="header-controls">
@@ -5774,22 +5796,80 @@ function loadCardHashes() {
   return cardHashesLoadPromise;
 }
 
+// Downscales a canvas to exactly targetW x targetH using a proper
+// box-filter (area-average) reduction, which is what sharp's
+// .resize(..., { fit: 'fill' }) does server-side in generate-hashes.js.
+// A single canvas.drawImage() call asked to shrink a ~700-1000px crop
+// straight down to 17x16 does NOT do this — browsers use a cruder filter
+// for large single-step downscales (varies by engine/device), which was
+// silently destroying the brightness-gradient detail dHash depends on.
+// This fixes that two ways: (1) repeated halving via drawImage to get
+// close to target size first (the standard trick that makes drawImage's
+// own filtering behave like proper averaging), then (2) a final manual
+// box-filter pass at the exact target size so the last step is a true
+// pixel average, not whatever drawImage happens to do.
+// v26.7 — see header comment for why this was the actual root cause of
+// inconsistent scan matching.
+function boxDownscale(srcCanvas, targetW, targetH) {
+  let cur = srcCanvas;
+  // Step 1: repeated halving until we're close to (but still >=) target.
+  // This keeps each individual drawImage resize ratio small (<=2x), which
+  // is the regime where browsers' built-in filtering is reasonably good.
+  while (cur.width > targetW * 2 && cur.height > targetH * 2) {
+    const nw = Math.max(targetW, Math.round(cur.width / 2));
+    const nh = Math.max(targetH, Math.round(cur.height / 2));
+    const step = document.createElement('canvas');
+    step.width = nw; step.height = nh;
+    step.getContext('2d').drawImage(cur, 0, 0, nw, nh);
+    cur = step;
+  }
+  // Step 2: one more drawImage to get to a small multiple of target size,
+  // then do the FINAL reduction to exact target size as a manual box
+  // filter (true area average) rather than trusting drawImage for the
+  // last, most sensitive step.
+  const preW = Math.max(targetW, Math.round(cur.width));
+  const preH = Math.max(targetH, Math.round(cur.height));
+  const pre = document.createElement('canvas');
+  pre.width = preW; pre.height = preH;
+  pre.getContext('2d').drawImage(cur, 0, 0, preW, preH);
+  const { data: srcData } = pre.getContext('2d').getImageData(0, 0, preW, preH);
+
+  const out = new Float64Array(targetW * targetH * 3); // r,g,b accumulators
+  const counts = new Float64Array(targetW * targetH);
+  for (let sy = 0; sy < preH; sy++) {
+    const ty = Math.min(targetH - 1, Math.floor((sy / preH) * targetH));
+    for (let sx = 0; sx < preW; sx++) {
+      const tx = Math.min(targetW - 1, Math.floor((sx / preW) * targetW));
+      const ti = ty * targetW + tx;
+      const si = (sy * preW + sx) * 4;
+      out[ti * 3] += srcData[si];
+      out[ti * 3 + 1] += srcData[si + 1];
+      out[ti * 3 + 2] += srcData[si + 2];
+      counts[ti]++;
+    }
+  }
+  const result = new Float64Array(targetW * targetH * 3);
+  for (let i = 0; i < targetW * targetH; i++) {
+    const c = counts[i] || 1;
+    result[i * 3] = out[i * 3] / c;
+    result[i * 3 + 1] = out[i * 3 + 1] / c;
+    result[i * 3 + 2] = out[i * 3 + 2] / c;
+  }
+  return result; // flat [r,g,b, r,g,b, ...] array, length targetW*targetH*3
+}
+
 // Computes a dHash from a canvas, returning the same hex format as
 // generate-hashes.js. Resizes to (HASH_SIZE+1) x HASH_SIZE grayscale, then
 // records whether each pixel is brighter than its neighbor to the right.
 function dHashFromCanvas(canvas) {
   const w = HASH_SIZE + 1, h = HASH_SIZE;
-  const small = document.createElement('canvas');
-  small.width = w; small.height = h;
-  const sctx = small.getContext('2d');
-  sctx.drawImage(canvas, 0, 0, w, h);
-  const { data } = sctx.getImageData(0, 0, w, h);
+  const rgb = boxDownscale(canvas, w, h);
 
   // Grayscale each pixel (same luminance weights as generate-hashes.js's
   // sharp .grayscale() call uses internally) then compare adjacent pixels.
   const gray = new Array(w * h);
   for (let i = 0; i < w * h; i++) {
-    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2];
+    const r = rgb[i * 3], g = rgb[i * 3 + 1], b = rgb[i * 3 + 2];
     gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
   }
 
@@ -5855,12 +5935,13 @@ async function matchCardFromImage(canvas) {
   }
   distances.sort((a, b) => a.distance - b.distance);
 
-  // TEMP DIAGNOSTIC (v26.5): log the top 5 distances to the console so we
-  // can see actual real-world numbers instead of guessing at the right
-  // threshold blind. Remove once a good threshold is confirmed against
-  // real scans. Check via remote debugging or a visible toast if console
-  // isn't reachable on the test device.
-  console.log('[scan] top 5 distances:', distances.slice(0, 5).map(d => `${d.card.id}: ${d.distance}`).join(', '));
+  // TEMP DIAGNOSTIC (v26.5, extended v26.7): top 5 distances, logged to
+  // console AND attached to the result so the on-screen debug overlay can
+  // show them on a phone without remote devtools. Keep until the v26.7
+  // resize fix is confirmed (via these very numbers) to have actually
+  // moved distances down — then this and the overlay toggle can be removed.
+  const debugTop5 = distances.slice(0, 5).map(d => ({ id: d.card.id, name: d.card.name, distance: d.distance }));
+  console.log('[scan] top 5 distances:', debugTop5.map(d => `${d.id}: ${d.distance}`).join(', '));
 
   // A distance under this fraction of total bits is treated as a meaningful
   // visual match. v26.4 used 0.25, which synthetic testing (clean
@@ -5869,8 +5950,9 @@ async function matchCardFromImage(canvas) {
   // capture: foil glare, hand-held angle, focus blur, and a resize
   // implementation difference between sharp (server-side reference
   // hashing) and canvas (client-side scan hashing) for non-matching aspect
-  // ratios. Loosened to 0.35 as a starting point — the diagnostic log
-  // above is what should actually tune this further against real scans.
+  // ratios. Loosened to 0.35 as a starting point — v26.7 fixes the resize
+  // mismatch itself, so this threshold may be tightenable again once real
+  // distances are confirmed lower. Watch the debug overlay/console.
   const CONFIDENT_THRESHOLD = HASH_BITS * 0.35;
   const top = distances.slice(0, 3);
   const confident = top.length > 0 && top[0].distance <= CONFIDENT_THRESHOLD;
@@ -5884,9 +5966,10 @@ async function matchCardFromImage(canvas) {
       unavailable: false,
       noConfidentMatch: true,
       debugClosest: top[0] ? { id: top[0].card.id, name: top[0].card.name, distance: top[0].distance, threshold: Math.round(CONFIDENT_THRESHOLD), totalBits: HASH_BITS } : null,
+      debugTop5,
     };
   }
-  return { matches: top.map(t => t.card), unavailable: false };
+  return { matches: top.map(t => t.card), unavailable: false, debugTop5, debugThreshold: Math.round(CONFIDENT_THRESHOLD), debugTotalBits: HASH_BITS };
 }
 
 async function captureAndScan() {
@@ -5921,12 +6004,31 @@ async function captureAndScan() {
   }
 }
 
+function buildDebugTop5Html(debugTop5, threshold, totalBits) {
+  // TEMP DIAGNOSTIC (v26.7): collapsible <details> block listing the top 5
+  // closest cards and their Hamming distances for the most recent scan.
+  // Lets distances be checked directly on a phone, no remote devtools
+  // needed. Remove this whole block once the v26.7 resize fix is confirmed
+  // (via these numbers, across several real scans) to behave correctly.
+  if (!debugTop5 || !debugTop5.length) return '';
+  const thresholdLine = (threshold != null && totalBits != null)
+    ? `<div style="margin-bottom:4px;">threshold: ≤${threshold}/${totalBits}</div>` : '';
+  const rows = debugTop5.map((d, i) =>
+    `<div>${i + 1}. ${escapeHtml(d.name)} (${escapeHtml(d.id)}) — ${d.distance}</div>`
+  ).join('');
+  return `<details style="margin-top:10px;font-size:11px;color:#6b7280;">
+    <summary style="cursor:pointer;">Scan debug (v26.7)</summary>
+    <div style="margin-top:6px;">${thresholdLine}${rows}</div>
+  </details>`;
+}
+
 function showScanResults(result) {
   const resultsBox = document.getElementById('scan-results');
   const listEl = document.getElementById('scan-results-list');
   document.getElementById('scan-controls').style.display = 'none';
 
   const matchedCards = result?.matches || [];
+  const debugHtml = buildDebugTop5Html(result?.debugTop5, result?.debugThreshold ?? result?.debugClosest?.threshold, result?.debugTotalBits ?? result?.debugClosest?.totalBits);
 
   if (result?.unavailable) {
     // card_hashes.json hasn't been generated/uploaded yet — scanning has
@@ -5934,13 +6036,9 @@ function showScanResults(result) {
     // so the message is different from "couldn't match."
     listEl.innerHTML = `<div class="scan-no-match">Scan isn't set up yet — the card reference database hasn't been uploaded. Search by name or ID instead for now.</div>`;
   } else if (result?.noConfidentMatch) {
-    const dbg = result.debugClosest;
-    const dbgLine = dbg
-      ? `<div style="margin-top:8px;font-size:11px;color:#6b7280;">debug: closest was ${escapeHtml(dbg.name)} (${escapeHtml(dbg.id)}) — distance ${dbg.distance}/${dbg.totalBits} (needed ≤${dbg.threshold})</div>`
-      : '';
-    listEl.innerHTML = `<div class="scan-no-match">Couldn't find a confident match. Try filling the frame with just the card, flat lighting with no glare, and holding the camera steady and parallel to the card.${dbgLine}</div>`;
+    listEl.innerHTML = `<div class="scan-no-match">Couldn't find a confident match. Try filling the frame with just the card, flat lighting with no glare, and holding the camera steady and parallel to the card.${debugHtml}</div>`;
   } else if (!matchedCards.length) {
-    listEl.innerHTML = `<div class="scan-no-match">Couldn't match that card. Try better lighting and avoid glare on the foil.</div>`;
+    listEl.innerHTML = `<div class="scan-no-match">Couldn't match that card. Try better lighting and avoid glare on the foil.${debugHtml}</div>`;
   } else {
     listEl.innerHTML = matchedCards.map(card => `
       <div class="scan-result-row" data-card-id="${escapeHtml(card.id)}">
@@ -5951,7 +6049,7 @@ function showScanResults(result) {
         </div>
         <button class="scan-result-open" data-card-id="${escapeHtml(card.id)}">Open</button>
       </div>
-    `).join('');
+    `).join('') + debugHtml;
     listEl.querySelectorAll('[data-card-id]').forEach(el => {
       el.addEventListener('click', () => {
         const card = cardById[el.dataset.cardId];
