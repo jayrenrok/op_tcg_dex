@@ -13,7 +13,19 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v26.4 -->
+<!-- build: v26.5 -->
+<!-- v26.5: DIAGNOSTIC BUILD. card_hashes.json confirmed correctly deployed
+     with both en+jp entries (verified live), so v26.4's "no confident
+     match" on a real scan means the threshold and/or cross-implementation
+     resize behavior (sharp server-side vs canvas client-side) needs real
+     numbers to tune, not more guessing. This build: (1) loosens
+     CONFIDENT_THRESHOLD from 0.25 to 0.35 of total bits as a starting
+     adjustment, (2) shows the closest card found and its actual distance
+     directly in the "no confident match" message, so a real scan now
+     reports diagnostic data instead of a flat failure. Remove the debug
+     line + tune threshold properly once real-world distances are known.
+     See matchCardFromImage() in JS. -->
+
 <!-- v26.4: Scan Card now matches against BOTH English and Japanese print
      reference images per card (card_hashes.json entries are now
      { en, jp } instead of a single hash). Fixes real-world bug: scans of
@@ -2299,7 +2311,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v26.4</div>
+          <div class="subtitle">Card Database · v26.5</div>
         </div>
       </div>
       <div class="header-controls">
@@ -5824,16 +5836,36 @@ async function matchCardFromImage(canvas) {
   }
   distances.sort((a, b) => a.distance - b.distance);
 
-  // A distance under ~25% of total bits is a meaningful visual match; above
-  // that, the closest "match" found is likely just the least-different
-  // card in the whole database, not an actual match — better to say so
-  // than present a confident-looking wrong guess.
-  const CONFIDENT_THRESHOLD = HASH_BITS * 0.25;
+  // TEMP DIAGNOSTIC (v26.5): log the top 5 distances to the console so we
+  // can see actual real-world numbers instead of guessing at the right
+  // threshold blind. Remove once a good threshold is confirmed against
+  // real scans. Check via remote debugging or a visible toast if console
+  // isn't reachable on the test device.
+  console.log('[scan] top 5 distances:', distances.slice(0, 5).map(d => `${d.card.id}: ${d.distance}`).join(', '));
+
+  // A distance under this fraction of total bits is treated as a meaningful
+  // visual match. v26.4 used 0.25, which synthetic testing (clean
+  // simulated images) suggested was generous — but real phone-camera scans
+  // stack several real-world degradations synthetic testing didn't fully
+  // capture: foil glare, hand-held angle, focus blur, and a resize
+  // implementation difference between sharp (server-side reference
+  // hashing) and canvas (client-side scan hashing) for non-matching aspect
+  // ratios. Loosened to 0.35 as a starting point — the diagnostic log
+  // above is what should actually tune this further against real scans.
+  const CONFIDENT_THRESHOLD = HASH_BITS * 0.35;
   const top = distances.slice(0, 3);
   const confident = top.length > 0 && top[0].distance <= CONFIDENT_THRESHOLD;
 
   if (!confident) {
-    return { matches: [], unavailable: false, noConfidentMatch: true };
+    // TEMP DIAGNOSTIC (v26.5): include the closest card found and its
+    // distance even when below confidence, so this can be shown on-screen
+    // for tuning without needing remote devtools access on the test device.
+    return {
+      matches: [],
+      unavailable: false,
+      noConfidentMatch: true,
+      debugClosest: top[0] ? { id: top[0].card.id, name: top[0].card.name, distance: top[0].distance, threshold: Math.round(CONFIDENT_THRESHOLD), totalBits: HASH_BITS } : null,
+    };
   }
   return { matches: top.map(t => t.card), unavailable: false };
 }
@@ -5883,7 +5915,11 @@ function showScanResults(result) {
     // so the message is different from "couldn't match."
     listEl.innerHTML = `<div class="scan-no-match">Scan isn't set up yet — the card reference database hasn't been uploaded. Search by name or ID instead for now.</div>`;
   } else if (result?.noConfidentMatch) {
-    listEl.innerHTML = `<div class="scan-no-match">Couldn't find a confident match. Try filling the frame with just the card, flat lighting with no glare, and holding the camera steady and parallel to the card.</div>`;
+    const dbg = result.debugClosest;
+    const dbgLine = dbg
+      ? `<div style="margin-top:8px;font-size:11px;color:#6b7280;">debug: closest was ${escapeHtml(dbg.name)} (${escapeHtml(dbg.id)}) — distance ${dbg.distance}/${dbg.totalBits} (needed ≤${dbg.threshold})</div>`
+      : '';
+    listEl.innerHTML = `<div class="scan-no-match">Couldn't find a confident match. Try filling the frame with just the card, flat lighting with no glare, and holding the camera steady and parallel to the card.${dbgLine}</div>`;
   } else if (!matchedCards.length) {
     listEl.innerHTML = `<div class="scan-no-match">Couldn't match that card. Try better lighting and avoid glare on the foil.</div>`;
   } else {
