@@ -13,7 +13,19 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v26.5 -->
+<!-- build: v26.6 -->
+<!-- v26.6: Fixed "Scan again" sometimes not working at all. The retry
+     button only toggled UI panel visibility back on; it never verified the
+     camera MediaStream was still actually live or re-attached to the
+     <video> element. Some browsers suspend a hidden video element's
+     playback, so toggling display:block back on doesn't guarantee frames
+     resume — now checks the stream's track readyState and calls
+     startScanCamera() again if needed. Also stops any existing stream's
+     tracks before requesting a new one (startScanCamera), to avoid leaking
+     camera tracks across repeated Scan Again taps. Diagnostic distance
+     logging from v26.5 kept for now — real-world numbers from a failed
+     match still needed to properly tune CONFIDENT_THRESHOLD. -->
+
 <!-- v26.5: DIAGNOSTIC BUILD. card_hashes.json confirmed correctly deployed
      with both en+jp entries (verified live), so v26.4's "no confident
      match" on a real scan means the threshold and/or cross-implementation
@@ -2311,7 +2323,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v26.5</div>
+          <div class="subtitle">Card Database · v26.6</div>
         </div>
       </div>
       <div class="header-controls">
@@ -5620,6 +5632,13 @@ async function startScanCamera() {
   const video = document.getElementById('scan-video');
   const errBox = document.getElementById('scan-error');
   const errSub = document.getElementById('scan-error-sub');
+  // Stop any existing stream first — avoids leaking camera tracks if this
+  // is called again (e.g. "Scan again") while a previous stream object is
+  // still hanging around in a half-suspended state.
+  if (scanStream) {
+    scanStream.getTracks().forEach(t => t.stop());
+    scanStream = null;
+  }
   try {
     // Prefer rear camera on phones/tablets
     scanStream = await navigator.mediaDevices.getUserMedia({
@@ -5958,12 +5977,28 @@ document.getElementById('scan-card-btn')?.addEventListener('click', openScanModa
 document.getElementById('scan-modal-close')?.addEventListener('click', closeScanModal);
 document.getElementById('scan-error-retry')?.addEventListener('click', startScanCamera);
 document.getElementById('scan-shutter-btn')?.addEventListener('click', captureAndScan);
-document.getElementById('scan-retry-btn')?.addEventListener('click', () => {
+document.getElementById('scan-retry-btn')?.addEventListener('click', async () => {
   document.getElementById('scan-results').classList.remove('show');
   document.getElementById('scan-controls').style.display = 'flex';
   document.getElementById('scan-hint').style.display = 'block';
-  document.getElementById('scan-video').style.display = 'block';
   document.getElementById('scan-canvas-preview').style.display = 'none';
+
+  const video = document.getElementById('scan-video');
+  video.style.display = 'block';
+
+  // Bug fix (v26.6): the camera stream can get suspended by the browser
+  // while the <video> element is hidden (display:none) during the results
+  // view — simply toggling visibility back on doesn't guarantee playback
+  // resumes. Check the stream's actual state and restart it if needed,
+  // rather than assuming the old MediaStream is still live.
+  const trackLive = scanStream?.getVideoTracks()?.[0]?.readyState === 'live';
+  if (!trackLive || video.srcObject !== scanStream) {
+    await startScanCamera();
+  } else {
+    // Stream object is fine, but make sure playback actually resumes —
+    // some browsers pause a video element's rendering when it's hidden.
+    try { await video.play(); } catch (e) { /* ignore - play() can reject if already playing */ }
+  }
 });
 
 // ===== Collection controls in card detail =====
