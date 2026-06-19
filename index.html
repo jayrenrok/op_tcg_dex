@@ -13,7 +13,18 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- build: v26.3 -->
+<!-- build: v26.4 -->
+<!-- v26.4: Scan Card now matches against BOTH English and Japanese print
+     reference images per card (card_hashes.json entries are now
+     { en, jp } instead of a single hash). Fixes real-world bug: scans of
+     physical Japanese-print cards weren't matching because the original
+     reference database only hashed the English print, and dHash is
+     sensitive to the text-region differences between language prints
+     even though the artwork is identical. Requires a regenerated
+     card_hashes.json (run generate-hashes.js again — it resumes from the
+     existing file and only needs to fetch the missing JP half per card).
+     See matchCardFromImage() in JS and generate-hashes.js's header. -->
+
 <!-- v26.1: Scan Card (camera + on-device OCR) feature added -->
 <!-- v26.2: Fixed OCR matching bugs (word-boundary extraction, cost/power
      disambiguation) — superseded by v26.3, kept here for history. -->
@@ -2288,7 +2299,7 @@ select.listing-input {
         <svg class="anchor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/></svg>
         <div>
           <h1>ONE PIECE <span class="accent">DEX</span></h1>
-          <div class="subtitle">Card Database · v26.3</div>
+          <div class="subtitle">Card Database · v26.4</div>
         </div>
       </div>
       <div class="header-controls">
@@ -5792,12 +5803,24 @@ async function matchCardFromImage(canvas) {
   const scanHash = dHashFromCanvas(canvas);
   const HASH_BITS = HASH_SIZE * HASH_SIZE; // 256
 
+  // Each card may have a reference hash for its English print, its Japanese
+  // print, or both (see generate-hashes.js — built this way because the
+  // artwork is identical between language prints but the text regions
+  // aren't, so a JP photo can sit much farther from an EN-only reference
+  // than from a JP one). We compare against whichever is present and keep
+  // the closer of the two as that card's overall distance — language of
+  // the physical card being scanned doesn't need to be known in advance.
+  // Older/partially-migrated hash files may still have a plain hex string
+  // per card (pre-dual-language format) — handled as an EN-only entry.
   const distances = [];
   for (const id in hashes) {
     const card = cardById[id];
     if (!card) continue; // hash db may reference an id not in current cards (stale)
-    const d = hammingHex(scanHash, hashes[id]);
-    distances.push({ card, distance: d });
+    const entry = hashes[id];
+    const candidates = typeof entry === 'string' ? [entry] : [entry?.en, entry?.jp].filter(Boolean);
+    if (!candidates.length) continue;
+    const bestForCard = Math.min(...candidates.map(h => hammingHex(scanHash, h)));
+    distances.push({ card, distance: bestForCard });
   }
   distances.sort((a, b) => a.distance - b.distance);
 
